@@ -1,0 +1,3 @@
+read/fits %1%
+centroid/box=1/xpix=500/ypix=500
+exit

@@ -1,0 +1,20 @@
+
+query yes
+
+ignore **-1. 10.-**
+ignore bad
+
+model ph(bb+po)
+1      0.001          0          0     100000      1e+06
+1       0.01     0.0001       0.01        100        200
+1       0.01          0          0      1e+24      1e+24
+1       0.01         -3         -2          9         10
+1       0.01          0          0      1e+24      1e+24
+
+fit
+
+setplot energy
+setplot add
+setplot command label top
+setplot command time off
+setplot command lwidth 4  3 4  8 9  13 14  18 19  23 24 

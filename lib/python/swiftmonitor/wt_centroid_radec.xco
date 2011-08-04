@@ -1,0 +1,4 @@
+read/fits %1%
+coord/ra=%2%/dec=%3% 
+centroid/box=1/xpix=$coord(xpix)/ypix=$coord(ypix)
+exit
