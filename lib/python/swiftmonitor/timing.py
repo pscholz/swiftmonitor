@@ -1,6 +1,7 @@
 from swiftmonitor import observation, events2dat
 from fluxtool import rms_estimator
 import sys
+import numpy as np
 
 execute = observation.timed_execute
 
@@ -11,10 +12,12 @@ def prepfold(datfile,parfile,nbins):
   cmd = 'prepfold -timing -par %s -n %d %s' % (parfile, nbins, datfile)
   execute(cmd)
 
-def swiftfold(ob,period,epoch):
-  cmd = 'swiftfold -i %s -o %s -p %f -r %f' % (ob.path + ob.reg_obsfile, ob.path + ob.obsroot + '.fold', period, epoch)
+def swiftfold(ob,freq,epoch,nbins=32):
+  cmd = 'swiftfold -i %s -o %s -f %f -r %f -b %d' %\
+        (ob.path + ob.reg_obsfile, ob.path + ob.obsroot + '.fold', freq, epoch, nbins)
+  execute(cmd)
 
-def pulsed_flux(ob, profile, twocycles=True, harmonics=5, bg_corrected=False):
+def pulsed_flux(ob, prof_file, twocycles=True, harmonics=5, bg_corrected=False):
   """
   Determine the RMS pulsed flux and pulsed fraction using Anne Archibald's 
     fluxtool. 
@@ -22,6 +25,8 @@ def pulsed_flux(ob, profile, twocycles=True, harmonics=5, bg_corrected=False):
     Returns a tuple of pulsed flux, pulsed flux error, pulsed fraction,
     and pulsed fraction error.
   """
+
+  profile = np.loadtxt(prof_file)
 
   if not bg_corrected:
     ob.get_countrates()
@@ -46,9 +51,9 @@ def pulsed_flux(ob, profile, twocycles=True, harmonics=5, bg_corrected=False):
     histogram = histogram[:len(histogram)//2]    
 
   if not bg_corrected:
-    histogram = histogram - ( bg_countrate / len(histogram) )
+    histogram = histogram - ( bg_counts / len(histogram) )
 
-  total_flux = mean(histogram)
+  total_flux = np.mean(histogram)
 
   rms_value, rms_uncertainty = rms_estimator(harmonics)(histogram, uncertainties)
 
@@ -58,6 +63,6 @@ def pulsed_flux(ob, profile, twocycles=True, harmonics=5, bg_corrected=False):
   return (rms_value, rms_uncertainty, rms_value/total_flux, rms_uncertainty/total_flux)
   
 
-def get_TOA(datfile, template )
+def get_TOA(datfile, template ):
   cmd = 'get_TOAs.py -e -f -t %s %s' % (template, datfile) 
   execute(cmd)

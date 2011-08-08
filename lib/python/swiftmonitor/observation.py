@@ -465,7 +465,7 @@ class Observation:
     self.countrate = countrate
     self.bg_countrate = bg_countrate
 
-    return countrate, bg_countate
+    return countrate, bg_countrate
 
   def convert_ds(self):
     cmd = 'swevt2ds.csh ' + self.path + self.reg_obsfile + ' ' + self.path + self.obsroot + '_bary_reg.ds -5' 
