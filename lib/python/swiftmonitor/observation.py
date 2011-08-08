@@ -355,7 +355,7 @@ class Observation:
     hdus.close()
 
 
-  def extract_spectrum(self,infile=None,chan_low=None,chan_high=None,energy_low=None,energy_high=None):
+  def extract_spectrum(self,infile=None,chan_low=None,chan_high=None,energy_low=None,energy_high=None,grouping=20):
     """
     Extract a spectrum.
       If both the PHA channel limits and energy limits are None will extract entire band.
@@ -393,7 +393,8 @@ class Observation:
 
     grppha_comm = "chkey backfile %s%s_back.pha & chkey ancrfile %s%s_source.arf & chkey respfile"%\
                   (self.path, self.obsroot, self.path, self.obsroot)\
-                  + " /exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxpc0to12s6_20070901v011.rmf & group min 20 & exit"
+                  + " /exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxpc0to12s6_20070901v011.rmf"\
+                  + " & group min %d & exit" % grouping
 
     cmd = "grppha infile=%s%s_source.pha outfile=%s%s_source.pha.grp clobber=yes comm=\"%s\""%\
           (self.path, self.obsroot, self.path, self.obsroot, grppha_comm)
@@ -440,12 +441,31 @@ class Observation:
 
   def extract_region(self):
     """
-    Extract events from the default region.
+    Extract events from the source and background region files.
     """
 
     print "Extracting events for default region...\n"
     self.extract(self.obsroot + "_bary_reg",infile=self.path + self.baryfile, events=True, region=self.path + self.src_region)  
+    self.extract(self.obsroot + "_bary_bgreg",infile=self.path + self.baryfile, events=True, region=self.path + self.back_region)  
     self.reg_obsfile = self.obsroot + "_bary_reg.evt"
+    self.bgreg_obsfile = self.obsroot + "_bary_bgreg.evt"
+
+  def get_countrates(self):
+    fits = pyfits.open(self.path + self.reg_obsfile)
+    bg_fits = pyfits.open(self.path + self.bgreg_obsfile)
+
+    exposure = float(fits[1].header['EXPOSURE'])
+    countrate = float(fits[1].header['NAXIS2']) / exposure
+    bg_countrate = float(bg_fits[1].header['NAXIS2']) / exposure
+    
+    fits.close()
+    bg_fits.close()
+ 
+    self.exposure = exposure 
+    self.countrate = countrate
+    self.bg_countrate = bg_countrate
+
+    return countrate, bg_countate
 
   def convert_ds(self):
     cmd = 'swevt2ds.csh ' + self.path + self.reg_obsfile + ' ' + self.path + self.obsroot + '_bary_reg.ds -5' 
