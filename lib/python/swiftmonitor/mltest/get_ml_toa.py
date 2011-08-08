@@ -52,10 +52,42 @@ def profile_from_coeffs(phases, alphas, betas, n):
   return f
 
 def events_from_binned_profile(profile):
-  #generate events with random position in bin
-  return 0
+  profile = profile[:len(profile)//2]    
+  binsize = 1.0 / len(profile[:,1])
+  phases = np.array([])
+  i = 0
+  for counts in profile[:,1]:
+    phases = np.append(phases, np.random.rand(counts)*binsize + i*binsize) 
+    i += 1
+  return phases
+  
 
-profile = np.loadtxt('grand_prof.txt')
+
+grand_profile = np.loadtxt('grand_prof.txt')
+grand_phases = events_from_binned_profile(grand_profile)
+
+x = grand_profile[:,0]* 2 / len(grand_profile)
+y = grand_profile[:,1]
+err = np.sqrt(y)
+
+plt.errorbar(x - (1.0/len(grand_profile)),y,err,fmt='k.')
+plt.step(x,y,'k',where='pre')
+
+hist = np.histogram(grand_phases,bins=len(grand_profile[:,1]) / 2)
+print hist
+
+plt.step(hist[1][:-1],hist[0],'r',where='post')
+
+n=32
+alphas, betas = fourier_coeffs(grand_phases, n)
+
+xplot = np.arange(0,1,0.01)
+yplot = profile_from_coeffs(xplot,alphas,betas,n)
+
+plt.figure()
+plt.plot(xplot,yplot)
+
+plt.show()
 
 """
 x = profile[:,0]* 2 / len(profile)
@@ -86,33 +118,3 @@ plt.plot(xplot,yplot)
 plt.show()
 """
 
-x = profile[:,0]* 2 / len(profile)
-y = profile[:,1]
-err = np.sqrt(y)
-
-plt.errorbar(x,y,err,fmt='k.')
-plt.step(x,y,'k',where='mid')
-
-fits = pyfits.open(sys.argv[1])
-
-raw_times = fits[1].data['TIME']
-t = sw2mjd(raw_times)
-
-f = 0.48277818
-fdots = [ -6.63E-12, -6.20E-18 ]
-pepoch = 54743.0
-
-#prob = calc_prob(f, fdots, t, pepoch, 1.0)
-#print prob
-
-n = 16
-
-phases = get_phase(f, fdots, t, pepoch)
-alphas, betas = fourier_coeffs(phases, n)
-
-xplot = np.arange(0,1,0.01)
-yplot = profile_from_coeffs(xplot,alphas,betas,n)
-
-plt.figure()
-plt.plot(xplot,yplot)
-plt.show()
