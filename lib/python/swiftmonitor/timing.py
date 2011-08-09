@@ -21,7 +21,21 @@ def pulsed_flux(ob, prof_file, twocycles=True, harmonics=5, bg_corrected=False):
   """
   Determine the RMS pulsed flux and pulsed fraction using Anne Archibald's 
     fluxtool. 
-    Takes a profile with 3 columns (bin number, counts, error) as input.
+
+    Arguments:
+      - ob: string filename of the pickle file of the observation.
+      - prof_file: string filename of the folded profile. Profile has 
+                   3 columns (bin number, counts, error).
+    Optional Arguments:
+      - twocycles: Whether or not the profile has 2 cycles.
+                   Default=True
+      - harmonics: Number of harmonics used to determine the RMS pulsed flux.
+                   Default=5
+      - bg_corrected: Whether or not the profile has been corrected for
+                      background counts. Will correct the profile if False
+                      before determining the RMS pulsed flux.
+                      Default=False
+      
     Returns a tuple of pulsed flux, pulsed flux error, pulsed fraction,
     and pulsed fraction error.
   """
@@ -64,5 +78,8 @@ def pulsed_flux(ob, prof_file, twocycles=True, harmonics=5, bg_corrected=False):
   
 
 def get_TOA(datfile, template ):
+  """
+  Get a TOA using the PRESTO script get_TOAs.py.
+  """
   cmd = 'get_TOAs.py -e -f -t %s %s' % (template, datfile) 
   execute(cmd)

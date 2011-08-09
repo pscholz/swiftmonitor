@@ -368,6 +368,8 @@ class Observation:
         - energy_low, energy_high: energy limits in keV to extract. 
                                    Will be superceded by chan_low and chan_high.
                                    Default=None.
+        - grouping: the minimum counts per bin for the spectrum.
+                    Default=20
 
     """
     print "Extracting spectrum...\n"
