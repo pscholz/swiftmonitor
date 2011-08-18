@@ -19,7 +19,7 @@ def writeinf(fits,fnroot,nbins):
   DEC=str(int(DECdeg))+':'  +str(int(DECmin))+':'+str(DECsec)
 
   stop=header['TSTOP']/86400.0
-  start=header['TSTART']/86400.0
+  start=fits[1].data['Time'][0]/86400.0
 
   #Write the .inf file# assuming Swift XRT in wt mode
   g=open(fnroot + '.inf','w+')
@@ -68,6 +68,6 @@ def events2dat(fname,binsize):
 
 if __name__=='__main__':
   fname = sys.argv[1]
-  binsize = sys.argv[2]
+  binsize = float(sys.argv[2])
   events2dat(fname,binsize)
 

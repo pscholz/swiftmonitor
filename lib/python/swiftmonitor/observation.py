@@ -334,7 +334,7 @@ class Observation:
     self.src_region = "source.reg"
     self.back_region = "back.reg"
 
-  def correct_backscal(self):
+  def correct_backscal(self, sourcefile=None, bgfile=None):
     """
     Corrects the BACKSCAL keyword in the .pha.grp spectrum file and the background spectrum file.
       Does NOT change the BACKSCAL keyword in the ungrouped source spectrum.
@@ -346,11 +346,17 @@ class Observation:
     # Set both BACKSCAL keywords to 1.0 as the 'area' along the strip is the same for
     # a circle of radius 20 pixels and an annulus of 'width' 20 pixels
 
-    hdus = pyfits.open(self.path + self.spectrum, mode='update')
+    if not sourcefile:
+      sourcefile = self.path + self.spectrum
+
+    if not bgfile:
+      bgfile = self.path + self.bg_spectrum
+
+    hdus = pyfits.open(sourcefile, mode='update')
     hdus[1].header['BACKSCAL'] = 1.0
     hdus.close()
     
-    hdus = pyfits.open(self.path + self.bg_spectrum, mode='update')
+    hdus = pyfits.open(bgfile, mode='update')
     hdus[1].header['BACKSCAL'] = 1.0
     hdus.close()
 
@@ -469,10 +475,16 @@ class Observation:
 
     return countrate, bg_countrate
 
-  def convert_ds(self):
-    cmd = 'swevt2ds.csh ' + self.path + self.reg_obsfile + ' ' + self.path + self.obsroot + '_bary_reg.ds -5' 
+  def convert_ds(self, infile=None, outfile=None):
+    if not infile:
+      infile = self.path + self.reg_obsfile
+
+    if not outfile:
+      outfile = self.path + self.obsroot +  '_bary_reg.ds'
+      self.dsfile = self.obsroot + '_bary_reg.ds'
+
+    cmd = 'swevt2ds.csh ' + infile + ' ' + outfile + ' -5' 
     timed_execute(cmd)
-    self.dsfile = self.obsroot + '_bary_reg.ds'
 
   def save(self):
     pickle.dump(self,file(self.path + self.obsroot+'.pkl','w'))
