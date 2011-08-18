@@ -23,7 +23,7 @@ def pulsed_flux(ob, prof_file, twocycles=True, harmonics=5, bg_corrected=False):
     fluxtool. 
 
     Arguments:
-      - ob: string filename of the pickle file of the observation.
+      - ob: the swiftmonior.observation object for the observation.
       - prof_file: string filename of the folded profile. Profile has 
                    3 columns (bin number, counts, error).
     Optional Arguments:
