@@ -385,8 +385,8 @@ class Observation:
         chan_low = 0
         chan_high = 1023
       else:
-        chan_low = energy_low * 10
-        chan_high = energy_high * 10
+        chan_low = int( energy_low * 100.0 )
+        chan_high = int( energy_high * 100.0 )
 
     x, y = self.find_centroid()
 
@@ -399,9 +399,14 @@ class Observation:
           (self.path, self.obsroot, self.path, self.obsroot, x, y) 
     timed_execute(cmd)  
 
-    grppha_comm = "chkey backfile %s%s_back.pha & chkey ancrfile %s%s_source.arf & chkey respfile"%\
-                  (self.path, self.obsroot, self.path, self.obsroot)\
-                  + " /exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxpc0to12s6_20070901v011.rmf"\
+    if self.mode == 'pc':
+      rmf = '/exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxpc0to12s6_20010101v013.rmf'
+    elif self.mode == 'wt':
+      rmf = '/exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxwt0to2s6_20010101v014.rmf'
+
+
+    grppha_comm = "chkey backfile %s%s_back.pha & chkey ancrfile %s%s_source.arf & chkey respfile %s"%\
+                  (self.path, self.obsroot, self.path, self.obsroot, rmf)\
                   + " & group min %d & exit" % grouping
 
     cmd = "grppha infile=%s%s_source.pha outfile=%s%s_source.pha.grp clobber=yes comm=\"%s\""%\
@@ -475,7 +480,7 @@ class Observation:
 
     return countrate, bg_countrate
 
-  def convert_ds(self, infile=None, outfile=None):
+  def convert_ds(self, infile=None, outfile=None, timeres=-5):
     if not infile:
       infile = self.path + self.reg_obsfile
 
@@ -483,7 +488,7 @@ class Observation:
       outfile = self.path + self.obsroot +  '_bary_reg.ds'
       self.dsfile = self.obsroot + '_bary_reg.ds'
 
-    cmd = 'swevt2ds.csh ' + infile + ' ' + outfile + ' -5' 
+    cmd = 'swevt2ds.sh ' + infile + ' ' + outfile + ' ' + str(timeres) 
     timed_execute(cmd)
 
   def save(self):
