@@ -16,16 +16,23 @@ scopes = {'GBT':'1',
           'IRAM': 's',
           'Geocenter': 'o'}
 
-def getErr(profile,template,k):
+def getErr(profile,templatefilenm):
   '''Based off of Pulsar Timing and Relativistic Gravity,
      J.H. Taylor, Phil. Trans. R. Soc. Lond. A 1992  341, 117-134
      Appendix A
      Usage: give this a profile, a template, and a number of
      harmonics and it will calculate the offset and output an error'''
-  a=1.0
-  offset=psr_utils.measure_phase_corr(profile, template)
-  Pfft=FFT.rfft(profile)
-  Tfft=FFT.rfft(template)
+  ####################################################################
+  ###                   Calculate sigscal                          ###
+  ####################################################################
+  k=int(len(profile)/2)   
+  template = psr_utils.read_profile(templatefilenm, normalize=0) 
+  template=template
+  profile=profile
+  a=1
+  offset=psr_utils.measure_phase_corr(profile-min(profile), template-min(template))
+  Pfft=FFT.rfft(profile-min(profile))
+  Tfft=FFT.rfft(template-min(template))
   Pamp=[]
   Tamp=[]
   Pph=[]
@@ -33,17 +40,48 @@ def getErr(profile,template,k):
   for i in range(0,k):
     Pamp.append(sqrt(real(Pfft[i]*conjugate(Pfft[i]))))
     Tamp.append(sqrt(real(Tfft[i]*conjugate(Tfft[i]))))
-    Pph.append(arctan(imag(Pfft[i])/real(Pfft[i])))
-    Tph.append(arctan(imag(Tfft[i])/real(Tfft[i])))
+    Pph.append(arctan(1*imag(Pfft[i])/real(Pfft[i])))
+    Tph.append(arctan(1*imag(Tfft[i])/real(Tfft[i])))
   b=0
   total=0
   denom=0
-  for i in range(0,k):
-    b+=Pamp[i]*Tamp[i]*cos(Tph[i]-Pph[i]-offset)
+  for i in range(1,k):
+    b+=Pamp[i]*Tamp[i]*cos(Tph[i]-Pph[i]+i*offset*2*pi)
     total+=Tamp[i]*Tamp[i]
-    denom+=i*i*Pamp[i]*Tamp[i]*cos(Tph[i]-Pph[i]-offset)
-  phaseerr=sqrt(abs(a/(2*b*denom)))  
-  return phaseerr  
+    denom+=i*i*Pamp[i]*Tamp[i]*cos(Tph[i]-Pph[i]+i*offset*2*pi)
+  b=b/total
+  sigscale=(abs(1/(2*b*denom)))
+  #####################################################################
+  ### Done SigScale, start Poisson Variations                       ###
+  #####################################################################
+  it=1000#do 'it' iterations
+  variation=Num.zeros(len(profile))
+  Offsets=[]
+  for i in range (0, it):
+    for j in range (0,len(profile)):
+      if profile[j]>=0:
+        variation[j]=double(Num.random.poisson(profile[j],1))
+      if profile[j]<=0: 
+        variation[j]=0   
+    Offsets.append(psr_utils.measure_phase_corr(variation-min(variation), template-min(template))) 
+  Offsets=np.array(Offsets)
+  #This fixes the error being way too big is the shift was around 0 or 1 (The std 
+  # would then be averaging values near 0 and 1)
+  k=0
+  for i in range (0,len(Offsets)):
+    Offsets[i]= Offsets[i] - offset;
+    if Offsets[i] < -0.5: 
+      Offsets[i] += 1.0
+    if Offsets[i] > 0.5:
+      Offsets[i] -= 1.0
+    if abs(Offsets[i]) > 0.2:
+       Offsets[i]=0
+       k=k+1
+  if k>=1:     
+    sys.stderr.write("Warning: May be Double peaked, attempting to correct:\nThere are "+str(k)+ " of "+ str(it) + " offsets > 0.2 phase away from the average offset .\n")    
+  sigma=std(Offsets)
+  #print 'sigma = ',sigma
+  return sigma
   
 def measure_phase(profile, template, rotate_prof=True):
     """
@@ -335,20 +373,19 @@ if __name__ == '__main__':
                     # Not enough structure in the template profile for FFTFIT
                     # so use time-domain correlations instead
                     tau = 1-psr_utils.measure_phase_corr(prof, template)
-                    # This needs to be changed
-                    tau_err = getErr(prof,template,3)
-                    #print 'Time correlation:'
+                tau_err = getErr(prof,templatefilenm)#Use poisson error estimate
                 # Send the TOA to STDOUT
                 toaf = t0f + (tau*p + offset)/SECPERDAY + sumsubdelays[jj]
                 newdays = int(Num.floor(toaf))
                 psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays,
                                               tau_err*p*1000000.0, 0000, fold_pfd.bestdm,
-                                              obs=obs, name=str(sys.argv[-1][5:13]))
+                                              obs=obs, name=str(sys.argv[-1][5:14]))#[5:13]))
                               
          
                 if (otherouts):
                     print "FFTFIT results:  b = %.4g +/- %.4g   SNR = %.4g +/- %.4g" % \
                           (b, errb, snr, esnr)
                     print "Offset= ", tau, " +/- ", tau_err
+                    
             except ValueError, fftfit.error:
                 pass

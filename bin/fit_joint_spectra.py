@@ -39,7 +39,7 @@ AllData.ignore("**:**-0.5 10.0-**")
 
 model = Model("ph(po+bb)")
 
-errorstr = '1 '
+errorstr = '1.0 1 '
 # untie non nH pars and set initial kT = 1
 for i in range(5*len(specs)):
   imod = i % 5

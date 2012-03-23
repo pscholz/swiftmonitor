@@ -1,4 +1,4 @@
-import os, sys, time
+import os, sys, time, shutil, glob
 import numpy as np
 import subprocess, re, pickle
 import pyfits
@@ -151,7 +151,7 @@ class Observation:
 
     orbitfile = "sw" + obsid + "sao.fits.gz"
 
-    obsdir_url = "http://heasarc.gsfc.nasa.gov/FTP/swift/data/obs/" + date + "//" + obsid + "/"
+    obsdir_url = "http://heasarc.gsfc.nasa.gov/FTP/swift/data/obs/" + date + "/" + obsid + "/"
 
     return obsfile, orbitfile, obsdir_url
 
@@ -174,6 +174,22 @@ class Observation:
     self.obsfile = obsfile
     self.obsroot = obsfile.split('.')[0]
 
+  def download_raw(self):
+    print "Querying HEASARC...\n"
+  
+    obsfile, orbitfile, obsurl = self._query_heasarc()
+
+    print "Downloading observation (all data)...\n"
+    
+    os.mkdir(self.path + '/raw/')
+
+    cmd = "wget -q -nH --cut-dirs=6 -r -l0 -R 'index*' -np -erobots=off --retr-symlinks -N -P "\
+          + self.path + "/raw/" + " " + obsurl + '/xrt/'
+    timed_execute(cmd)
+    cmd = "wget -q -nH --cut-dirs=6 -r -l0 -R 'index*' -np -erobots=off --retr-symlinks -N -P "\
+          + self.path + "/raw/" + " " + obsurl + '/auxil/'
+    timed_execute(cmd)
+
   def manual_add(self, obsfile, orbitfile):
     """
     Set up for an observation for which the orbitfile and obsfile were downloaded manually. 
@@ -182,6 +198,31 @@ class Observation:
     self.orbitfile = orbitfile
     self.obsfile = obsfile
     self.obsroot = obsfile.split('.')[0]
+
+  def preprocess(self, raw_dir, out_dir, xrtpipeline_args=""):
+    """
+    Preprocess the raw unfiltered data using xrtpipeline.
+    """
+    cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s srcra=%s srcdec=%s exitstage=2 %s' %\
+          (raw_dir, out_dir, self.obsid, self.ra, self.dec, xrtpipeline_args)
+    cmd += " > %s/xrtpipeline.log" % self.path
+    timed_execute(cmd)
+ 
+    event_files = glob.glob(out_dir + "/sw" + self.obsid + "x" + self.mode + "*" + "po_cl.evt")
+    orbit_files = glob.glob(raw_dir + "/auxil/sw" + self.obsid + "sao.fits*")
+    
+    if not event_files or len(event_files) > 1:
+      print "No or more than one cleaned event file output in %s" % out_dir
+    if not orbit_files or len(orbit_files) > 1:
+      print "No or more than one orbit file exists in %s/auxil/" % raw_dir
+
+    shutil.copy(event_files[0], self.path)
+    shutil.copy(orbit_files[0], self.path)
+
+    self.obsfile = os.path.basename(event_files[0])
+    self.orbitfile = os.path.basename(orbit_files[0])
+    self.obsroot = self.obsfile.split('.')[0]
+    
 
   def barycentre(self, RA=None, Dec=None):
     """
@@ -192,11 +233,12 @@ class Observation:
     print "Barycentreing observation...\n"
 
     self.baryfile = self.obsroot + '_bary.evt'
+    # put swco.dat in /exports/scratch/software/heasoft-6.11/x86_64-unknown-linux-gnu/refdata/ 
     if RA and Dec:
-      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes' %\
+      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=swco.dat' %\
             (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, RA, Dec)
     elif self.pulsar:
-      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes' %\
+      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=swco.dat' %\
             (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, self.ra, self.dec)
     else:
       print "No RA and Dec given. Using RA and Dec of target in fits header..."
@@ -205,7 +247,7 @@ class Observation:
       
     bary_time = timed_execute(cmd)
 
-  def extract(self,outroot,infile=None,events=True,image=False,pha=False,lc=False,region=None,chanlow=0,chanhigh=1023):
+  def extract(self,outroot,infile=None,events=True,image=False,pha=False,lc=False,region=None,grade=None,chanlow=0,chanhigh=1023):
     """
     Wrapper for extractor ftool. If infile is None will use baryfile or obsfile as input.
    
@@ -237,31 +279,34 @@ class Observation:
         print "Using baryfile as input."
         infile = self.path + self.baryfile
    
-    args = '[%d:%d] xcolf=X ycolf=Y tcol=TIME ecol=PI timefile=NONE xcolh=X ycolh=Y ' % (chanlow, chanhigh)
+    args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE timefile=NONE xcolh=X ycolh=Y " %\
+            (infile, chanlow, chanhigh)
 
-    if image == True:
+    if image:
       args += 'imgfile=%s%s.img ' % (self.path, outroot)
     else:
       args += 'imgfile=NONE '
-    if pha == True:
+    if pha:
       args += 'phafile=%s%s.pha ' % (self.path, outroot)
     else:
       args += 'phafile=NONE '
-    if lc == True:
+    if lc:
       args += 'fitsbinlc=%s%s.lc ' % (self.path, outroot)
     else:
       args += 'fitsbinlc=NONE '
-    if events == True:
+    if events:
       args += 'eventsout=%s%s.evt ' % (self.path, outroot)
     else:
       args += 'eventsout=NONE '
-    if region != None:
+    if region:
       args += 'regionfile=%s ' % region
     else:
       args += 'regionfile=NONE '
+    if grade:
+      args += 'gstring=%s ' % grade
 
     args += 'clobber=yes'
-    cmd = 'extractor ' + infile + args 
+    cmd = 'extractor ' + args 
     extract_time = timed_execute(cmd)
 
   def find_centroid(self,force_redo=False,use_max=True):
@@ -334,7 +379,7 @@ class Observation:
     self.src_region = "source.reg"
     self.back_region = "back.reg"
 
-  def correct_backscal(self, sourcefile=None, bgfile=None):
+  def correct_backscal(self, sourcefile=None, bgfile=None, value=1.0):
     """
     Corrects the BACKSCAL keyword in the .pha.grp spectrum file and the background spectrum file.
       Does NOT change the BACKSCAL keyword in the ungrouped source spectrum.
@@ -353,15 +398,15 @@ class Observation:
       bgfile = self.path + self.bg_spectrum
 
     hdus = pyfits.open(sourcefile, mode='update')
-    hdus[1].header['BACKSCAL'] = 1.0
+    hdus[1].header['BACKSCAL'] = value
     hdus.close()
     
     hdus = pyfits.open(bgfile, mode='update')
-    hdus[1].header['BACKSCAL'] = 1.0
+    hdus[1].header['BACKSCAL'] = value
     hdus.close()
 
 
-  def extract_spectrum(self,infile=None,chan_low=None,chan_high=None,energy_low=None,energy_high=None,grouping=20):
+  def extract_spectrum(self,infile=None,chan_low=None,chan_high=None,energy_low=None,energy_high=None,grouping=20,grade=None):
     """
     Extract a spectrum.
       If both the PHA channel limits and energy limits are None will extract entire band.
@@ -390,31 +435,52 @@ class Observation:
 
     x, y = self.find_centroid()
 
-    self.extract(self.obsroot + "_source",infile=infile, events=False, pha=True,\
-                   region=self.path + self.src_region, chanlow=chan_low, chanhigh=chan_high)  
-    self.extract(self.obsroot + "_back",infile=infile, events=False, pha=True,\
-                   region=self.path + self.back_region, chanlow=chan_low, chanhigh=chan_high)  
+    outroot = self.obsroot 
+    if grade:
+      outroot += '_g%s' % grade
+
+    self.extract(outroot + "_source",infile=infile, events=False, pha=True,\
+                   region=self.path + self.src_region, chanlow=chan_low, chanhigh=chan_high,grade=grade)  
+    self.extract(outroot + "_back",infile=infile, events=False, pha=True,\
+                   region=self.path + self.back_region, chanlow=chan_low, chanhigh=chan_high,grade=grade)  
 
     cmd = "xrtmkarf outfile=%s%s_source.arf phafile=%s%s_source.pha psfflag=yes srcx=%s srcy=%s clobber=yes"%\
-          (self.path, self.obsroot, self.path, self.obsroot, x, y) 
-    timed_execute(cmd)  
+          (self.path, outroot, self.path, outroot, x, y) 
+    #timed_execute(cmd)  
 
-    if self.mode == 'pc':
-      rmf = '/exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxpc0to12s6_20010101v013.rmf'
-    elif self.mode == 'wt':
-      rmf = '/exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxwt0to2s6_20010101v014.rmf'
+    pipe = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
+    xrtmkarf_out = pipe.stdout.read()
+    pipe.stdout.close() 
+    print xrtmkarf_out
+
+    rmf_re = re.compile("Processing \'(?P<rmf>.*)\.rmf\' CALDB file\.")
+    rmf_search = rmf_re.search(xrtmkarf_out)
+    if rmf_search:
+      rmf = rmf_search.groupdict()['rmf'] + '.rmf'
+    else:
+      print "ERROR: No rmf filename found from xrtmkarf output."
+
+    if grade and grade != '0':
+      print "Grade selection not 0 or default, rmf in 'respfile' keyword may be wrong."
+
+    #if self.mode == 'pc':
+    #  rmf = '/exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxpc0to12s6_20010101v013.rmf'
+    #elif self.mode == 'wt' and not grade:
+    #  rmf = '/exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxwt0to2s6_20010101v014.rmf'
+    #elif self.mode == 'wt' and grade == '0':
+    #  rmf = '/exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxwt0s6_20010101v014.rmf'
 
 
     grppha_comm = "chkey backfile %s%s_back.pha & chkey ancrfile %s%s_source.arf & chkey respfile %s"%\
-                  (self.path, self.obsroot, self.path, self.obsroot, rmf)\
+                  (self.path, outroot, self.path, outroot, rmf)\
                   + " & group min %d & exit" % grouping
 
     cmd = "grppha infile=%s%s_source.pha outfile=%s%s_source.pha.grp clobber=yes comm=\"%s\""%\
-          (self.path, self.obsroot, self.path, self.obsroot, grppha_comm)
+          (self.path, outroot, self.path, outroot, grppha_comm)
     timed_execute(cmd)
 
-    self.spectrum = "%s_source.pha.grp" % (self.obsroot)
-    self.bg_spectrum = "%s_back.pha" % (self.obsroot)
+    self.spectrum = "%s_source.pha.grp" % (outroot)
+    self.bg_spectrum = "%s_back.pha" % (outroot)
 
   def fit_spectrum(self, spectrum=None):
     """
@@ -468,12 +534,16 @@ class Observation:
     bg_fits = pyfits.open(self.path + self.bgreg_obsfile)
 
     exposure = float(fits[1].header['EXPOSURE'])
-    countrate = float(fits[1].header['NAXIS2']) / exposure
-    bg_countrate = float(bg_fits[1].header['NAXIS2']) / exposure
-    
+    counts = float(fits[1].header['NAXIS2'])
+    bg_counts = float(bg_fits[1].header['NAXIS2'])
+    countrate = counts / exposure
+    bg_countrate = bg_counts / exposure
+ 
     fits.close()
     bg_fits.close()
  
+    self.counts = counts 
+    self.bg_counts = bg_counts 
     self.exposure = exposure 
     self.countrate = countrate
     self.bg_countrate = bg_countrate

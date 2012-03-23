@@ -36,9 +36,9 @@ radial_prof_err = np.sqrt(radial_prof)
 
 areas = ( ( bins[1:]*binsize )**2 - ( bins[:-1]*binsize )**2 ) * (2.36/60.0)**2 # in sq arcmin
 
-prof_r = bin_centers[:25]*2.36 # in arcsec
-prof_cnts = radial_prof[:25]/areas[:25]/exposure # in counts/sq arcmin/sec
-prof_err = radial_prof_err[:25]/areas[:25]/exposure 
+prof_r = bin_centers[:15]*2.36 # in arcsec
+prof_cnts = radial_prof[:15]/areas[:15]/exposure # in counts/sq arcmin/sec
+prof_err = radial_prof_err[:15]/areas[:15]/exposure 
 
 A_init = 1.0
 errfunc = lambda p, x, y, err: (y - king_prof(x, p)) / err
