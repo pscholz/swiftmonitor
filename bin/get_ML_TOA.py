@@ -31,9 +31,21 @@ parser.add_option("--chandra",
 		  dest="chandra", action='store_true',
 		  help="Event files are from chandra, not swift.",
 		  default=False)
+parser.add_option("--xmm",
+		  dest="xmm", action='store_true',
+		  help="Event files are from xmm, not swift.",
+		  default=False)
 parser.add_option("--offsets",
 		  dest="offsets", action='store_true',
 		  help="Print phase offset used for TOA.",
+		  default=False)
+parser.add_option("--periodogram",
+		  dest="periodogram", type='string',
+		  help="Name of periodogram.py output file to use as input.",
+		  default=None)
+parser.add_option("--sim",
+		  dest="sim", action='store_true',
+		  help="Determine the error in the TOA using simulations.",
 		  default=False)
 
  
@@ -43,11 +55,19 @@ profile = np.loadtxt(options.profile)
 
 prof_mod = model_profile.makeProfileModel(options.model, profile)
 
-if options.list:
-  flist = np.loadtxt(options.list,dtype='S') 
-else:
-  flist = args[0:]
+if options.periodogram:
+  flist = np.loadtxt(options.periodogram,usecols=[0],dtype='S')
+  epoch, frequency = np.loadtxt(options.periodogram,usecols=[1,2],dtype='float',unpack=True)
+  for i,fitsfile in enumerate(flist):
+    ml_toa.get_ml_toa(fitsfile, prof_mod, None, chandra=options.chandra, xmm=options.xmm, 
+                      print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i])
 
-for fitsfile in flist:
-  ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, print_offs=options.offsets)
+else:
+  if options.list:
+    flist = np.loadtxt(options.list,dtype='S') 
+  else:
+    flist = args[0:]
+
+  for fitsfile in flist:
+    ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, print_offs=options.offsets, sim=options.sim)
 

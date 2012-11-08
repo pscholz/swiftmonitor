@@ -5,8 +5,15 @@ import pyfits
 import sys
 import psr_utils
 from psr_constants import SECPERDAY
+from swiftmonitor.utils import randomvariate, events_from_binned_profile
+import time
 
 sys.setrecursionlimit(100000)
+
+calcprobtime = 0
+logsumtime = 0
+integratetime = 0
+
 
 def logsumexp(array):
   if len(array) == 2:
@@ -97,6 +104,7 @@ def getErrMid50(offsets, Prob, del_off):
     #plt.plot(offsets, CProb) 
     #plt.vlines(offsets[len(CProb)/2+center2], 0, max(CProb)*1.05,linestyles='dotted' )
     #plt.errorbar(offsets[len(CProb)/2+center2],0.5*max(CProb), xerr=sigma,fmt='o')
+    #plt.show()
     return offset, sigma 
 
 def getErr(offsets, Prob, del_off):
@@ -123,43 +131,111 @@ def getErr(offsets, Prob, del_off):
       j=j+1  
     sigma=(a+b)/2.0*del_off
     #plt.errorbar(offsets[np.argmax(CProb)],0.5*max(CProb), xerr=sigma,fmt='o')
-    #plt.plot(offsets, CProb,'r.')
+    #plt.plot(offsets, CProb)
+    #plt.axvline(0.5,ls='dotted')
+    #plt.show()
     return maxoff, sigma 
 
-def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, print_offs=False):
+def simErr(prof_mod,N_counts,phases,from_template=True):
+  sim_offsets = []
+  N_sim = 100
+  N_bins = 32
+  run = 0
+  if not from_template:
+    bins = np.linspace(0,1,N_bins+1)
+    folded = np.histogram(phases,bins)[0] 
 
-  fits = pyfits.open(fits_fn)
-  swift_t = fits[1].data['Time']
+  while run < N_sim:
+    sys.stderr.write("Sim %d %% Complete \r" % (run*100.0/N_sim))
+    sys.stderr.flush()
+    if from_template:
+      simmed_phases = randomvariate(prof_mod,N_counts) 
+    else:
+      folded = np.random.poisson(folded)
+      simmed_phases = events_from_binned_profile(folded)
+    sim_offset, sim_error = calc_toa_offset(simmed_phases,prof_mod,no_err=True)
+    sim_offsets.append((sim_offset+0.5) % 1.0)
+    run += 1
 
-  if chandra:
-    t = chandra2mjd(swift_t)
-  else:
-    t = sw2mjd(swift_t)
+  #median = np.median(sim_offsets)
+  #mad = np.median(np.abs(sim_offsets-median))
+  #plt.hist(sim_offsets)
+  #print "Std dev offsets",np.std(sim_offsets)
+  #print "MAD offsets",mad
+  #plt.show()
+  sys.stderr.write("Sim 100%% Complete \n")
+  return np.std(sim_offsets)
 
-  par = PSRpar(parfile)
 
-  phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], 
-                                 par.fdots[2], par.fdots[3]) 
+def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False):
+  global calcprobtime
+  global logsumtime 
+  global integratetime
 
   probs = []
   del_off = 0.0001
   offsets = np.arange(0,1,del_off)
   offsets = np.append(offsets,1.0)
 
+  starttime = time.time()
   for offset in offsets:
     prob =  calc_prob(phases, offset, prof_mod)  
     probs.append(prob)
+  calcprobtime += time.time() - starttime
 
+  starttime = time.time()
   probs = probs - logsumexp(probs)
+  logsumtime += time.time() - starttime
 
+  starttime = time.time()
   probs = np.exp(np.array(probs))
   area = integrate.trapz(probs,dx=del_off)
   probs_norm = probs/area
+  integratetime += time.time() - starttime
 
-  maxoff, error = getErr(offsets, probs_norm, del_off)
+  if sim_err:
+    maxoff = offsets[np.argmax(probs)]
+    error = simErr(prof_mod,len(phases),phases,from_template=True) 
+  elif no_err:
+    maxoff = offsets[np.argmax(probs)]
+    error = None
+  else:
+    maxoff, error = getErrMid50(offsets, probs_norm, del_off)
+  
+  return maxoff, error
 
+
+def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=False, frequency=None, epoch=None, sim=False):
+
+  fits = pyfits.open(fits_fn)
+  swift_t = fits[1].data['Time']
+  if not chandra:
+    exposure = fits[0].header['EXPOSURE']
   obsid = fits[0].header['OBS_ID']
-  if chandra:
+
+  if chandra and xmm:
+    raise ValueError('Data can only be from one of Chandra and XMM!')
+  elif chandra or xmm:
+    t = chandra2mjd(swift_t) # XMM and chandra use same MJDREF
+  else:
+    t = sw2mjd(swift_t)
+
+  if frequency and epoch:
+    par = lambda: None
+    par.epoch = epoch
+    par.f0 = frequency
+    par.fdots = [0.0,0.0,0.0,0.0]
+  else:
+    par = PSRpar(parfile)
+
+  sys.stderr.write('Measuring TOA for %s\n' % obsid)
+
+  phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], 
+                                 par.fdots[2], par.fdots[3]) 
+
+  maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim)
+
+  if chandra or xmm:
     midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
   else:
     midtime = ( sw2mjd(fits[0].header['TSTART']) + sw2mjd(fits[0].header['TSTOP']) ) / 2.0
@@ -174,7 +250,15 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, print_offs=False):
   psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
 
   if print_offs:
-    exposure = fits[0].header['EXPOSURE']
     print "\t",error*p_mid*1.0e6,"\t",exposure
-    print "\tOffset:",maxoff,"+/-",error 
+    print obsid,"\tOffset:",maxoff,"+/-",error 
 
+  fits.close()
+
+  global calcprobtime
+  global logsumtime 
+  global integratetime
+
+  sys.stderr.write('\tCalc Prob: %f s\n' % calcprobtime)
+  sys.stderr.write('\tLog Sum: %f s\n' % logsumtime)
+  sys.stderr.write('\tIntegrate Norm: %f s\n' % integratetime)
