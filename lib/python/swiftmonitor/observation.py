@@ -37,6 +37,7 @@ class Observation:
     self.centroidx = None
     self.centroidy = None
     self.spec_fit = None
+    self.ra, self.dec = None, None
   
     if self.pulsar:
       self.ra, self.dec = self._get_pulsar_position()
@@ -101,6 +102,7 @@ class Observation:
 
     for line in cmd.stdout:
       line = line.replace(' ','')
+      print line
       if tabledown_re.search(line):
         raise TableDownError
       if point_re.match(line):
@@ -203,8 +205,12 @@ class Observation:
     """
     Preprocess the raw unfiltered data using xrtpipeline.
     """
-    cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s srcra=%s srcdec=%s exitstage=2 %s' %\
-          (raw_dir, out_dir, self.obsid, self.ra, self.dec, xrtpipeline_args)
+    if self.ra and self.dec:
+        cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s srcra=%s srcdec=%s exitstage=2 %s' %\
+              (raw_dir, out_dir, self.obsid, self.ra, self.dec, xrtpipeline_args)
+    else:
+        cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s exitstage=2 %s' %\
+              (raw_dir, out_dir, self.obsid, xrtpipeline_args)
     cmd += " > %s/xrtpipeline.log" % self.path
     timed_execute(cmd)
  
@@ -238,7 +244,7 @@ class Observation:
       cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=swco.dat' %\
             (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, RA, Dec)
     elif self.pulsar:
-      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=swco.dat' %\
+      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
             (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, self.ra, self.dec)
     else:
       print "No RA and Dec given. Using RA and Dec of target in fits header..."
