@@ -2,6 +2,7 @@ import numpy as np
 from scipy import optimize, integrate
 import types
 import pickle
+import matplotlib.pyplot as plt
 
 def find_model(model_name):
   """
@@ -189,3 +190,6 @@ if __name__ == '__main__':
 
   profile = np.loadtxt(args[0])
   prof_mod = makeProfileModel(options.model,profile)
+  x = np.arange(0,1,0.001)
+  plt.plot(x,prof_mod(x))
+  plt.show()
