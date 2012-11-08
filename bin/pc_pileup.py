@@ -4,7 +4,7 @@ import pyfits
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-from scipy import optimize
+from scipy import optimize, integrate
 
 def king_prof(r,A):
   r_c = 5.8
@@ -51,6 +51,11 @@ cov = output[1]
 plt.errorbar(prof_r,prof_cnts,prof_err,binsize*2.36/2.0,fmt="o")
 rplot = np.arange(prof_r[0], prof_r[-1], 0.1)
 plt.plot(rplot,king_prof(rplot,p1) )
+
+king_area = integrate.quad(king_prof,binsize*2.36, prof_r[-1],args=p1)[0]
+psf_area = np.sum(prof_cnts[1:])*binsize*2.36
+
+print 'Pile-up Fraction:', (king_area - psf_area) / king_area
 
 plt.xscale('log')
 plt.yscale('log')
