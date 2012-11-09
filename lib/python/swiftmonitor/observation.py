@@ -253,7 +253,8 @@ class Observation:
       
     bary_time = timed_execute(cmd)
 
-  def extract(self,outroot,infile=None,events=True,image=False,pha=False,lc=False,region=None,grade=None,chanlow=0,chanhigh=1023):
+  def extract(self,outroot,infile=None,events=True,image=False,pha=False,lc=False,region=None,\
+              grade=None,gtifile=None,chanlow=0,chanhigh=1023):
     """
     Wrapper for extractor ftool. If infile is None will use baryfile or obsfile as input.
    
@@ -285,7 +286,7 @@ class Observation:
         print "Using baryfile as input."
         infile = self.path + self.baryfile
    
-    args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE timefile=NONE xcolh=X ycolh=Y " %\
+    args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE xcolh=X ycolh=Y gti='GTI' " %\
             (infile, chanlow, chanhigh)
 
     if image:
@@ -308,6 +309,10 @@ class Observation:
       args += 'regionfile=%s ' % region
     else:
       args += 'regionfile=NONE '
+    if gtifile:
+      args += 'timefile=%s ' % gtifile
+    else:
+      args += 'timefile=NONE ' % gtifile
     if grade:
       args += 'gstring=%s ' % grade
 
