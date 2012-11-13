@@ -312,7 +312,7 @@ class Observation:
     if gtifile:
       args += 'timefile=%s ' % gtifile
     else:
-      args += 'timefile=NONE ' % gtifile
+      args += 'timefile=NONE '
     if grade:
       args += 'gstring=%s ' % grade
 
