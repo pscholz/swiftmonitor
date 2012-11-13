@@ -140,8 +140,10 @@ class ImageExplorer:
       image,xedges,yedges = np.histogram2d(data_subset['Y'],data_subset['X'],bins)
       img = self.imax.imshow(np.log10(image),interpolation='nearest',cmap=cm.gist_yarg,\
                              origin='lower',extent=(1,1024,1,1024),aspect=1)
-      plot_region(file(self.src_reg),imax,'b')
-      xlim, ylim = plot_region(file(self.back_reg),imax,'g')
+      src_xlim, src_ylim = plot_region(file(self.src_reg),imax,'b')
+      back_xlim, back_ylim = plot_region(file(self.back_reg),imax,'g')
+      xlim = [min(src_xlim[0],back_xlim[0]),max(src_xlim[1],back_xlim[1])]
+      ylim = [min(src_ylim[0],back_ylim[0]),max(src_ylim[1],back_ylim[1])]
       imax.set_ylim(ylim)
       imax.set_xlim(xlim)
 
@@ -228,7 +230,7 @@ def plot_region(region_file,ax,color):
 
   line = line.split('(')
   reg_type = line[0]
-  coords = line[1][:-1].split(',')
+  coords = line[1].rstrip().rstrip(')').split(',')
   
   if reg_type == 'circle':
     x, y, r = float(coords[0]),float(coords[1]),float(coords[2])
