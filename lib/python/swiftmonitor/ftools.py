@@ -64,7 +64,7 @@ def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=Non
   if gtifile:
     args += 'timefile=%s ' % gtifile
   else:
-    args += 'timefile=NONE ' % gtifile
+    args += 'timefile=NONE '
   if grade:
     args += 'gstring=%s ' % grade
 
