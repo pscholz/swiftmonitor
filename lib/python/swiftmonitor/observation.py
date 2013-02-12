@@ -38,6 +38,7 @@ class Observation:
     self.centroidy = None
     self.spec_fit = None
     self.ra, self.dec = None, None
+    self.expmap=None
   
     if self.pulsar:
       self.ra, self.dec = self._get_pulsar_position()
@@ -206,27 +207,32 @@ class Observation:
     Preprocess the raw unfiltered data using xrtpipeline.
     """
     if self.ra and self.dec:
-        cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s srcra=%s srcdec=%s exitstage=2 %s' %\
+        cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s createexpomap=yes srcra=%s srcdec=%s %s' %\
               (raw_dir, out_dir, self.obsid, self.ra, self.dec, xrtpipeline_args)
     else:
-        cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s exitstage=2 %s' %\
+        cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s createexpomap=yes %s' %\
               (raw_dir, out_dir, self.obsid, xrtpipeline_args)
     cmd += " > %s/xrtpipeline.log" % self.path
     timed_execute(cmd)
  
     event_files = glob.glob(out_dir + "/sw" + self.obsid + "x" + self.mode + "*" + "po_cl.evt")
     orbit_files = glob.glob(raw_dir + "/auxil/sw" + self.obsid + "sao.fits*")
+    expmap_files = glob.glob(out_dir + "/sw" + self.obsid + "x" + self.mode + "*" + "_ex.img")
     
     if not event_files or len(event_files) > 1:
       print "No or more than one cleaned event file output in %s" % out_dir
     if not orbit_files or len(orbit_files) > 1:
       print "No or more than one orbit file exists in %s/auxil/" % raw_dir
+    if not expmap_files or len(expmap_files) > 1:
+      print "No or more than one exposure map file exists in %s" % out_dir
 
     shutil.copy(event_files[0], self.path)
     shutil.copy(orbit_files[0], self.path)
+    shutil.copy(expmap_files[0], self.path)
 
     self.obsfile = os.path.basename(event_files[0])
     self.orbitfile = os.path.basename(orbit_files[0])
+    self.expmap = os.path.basename(expmap_files[0])
     self.obsroot = self.obsfile.split('.')[0]
     
 
@@ -457,6 +463,8 @@ class Observation:
 
     cmd = "xrtmkarf outfile=%s%s_source.arf phafile=%s%s_source.pha psfflag=yes srcx=%s srcy=%s clobber=yes"%\
           (self.path, outroot, self.path, outroot, x, y) 
+    if self.expmap:
+      cmd += " expofile=%s%s" % (self.path, self.expmap)
     #timed_execute(cmd)  
 
     pipe = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
