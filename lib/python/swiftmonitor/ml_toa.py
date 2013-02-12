@@ -138,7 +138,7 @@ def getErr(offsets, Prob, del_off):
 
 def simErr(prof_mod,N_counts,phases,from_template=True):
   sim_offsets = []
-  N_sim = 100
+  N_sim = 1000
   N_bins = 32
   run = 0
   if not from_template:
@@ -167,7 +167,7 @@ def simErr(prof_mod,N_counts,phases,from_template=True):
   return np.std(sim_offsets)
 
 
-def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False):
+def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False, bg_counts=0):
   global calcprobtime
   global logsumtime 
   global integratetime
@@ -195,7 +195,7 @@ def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False):
 
   if sim_err:
     maxoff = offsets[np.argmax(probs)]
-    error = simErr(prof_mod,len(phases),phases,from_template=True) 
+    error = simErr(prof_mod,len(phases)-bg_counts,phases,from_template=True) 
   elif no_err:
     maxoff = offsets[np.argmax(probs)]
     error = None
@@ -205,7 +205,7 @@ def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False):
   return maxoff, error
 
 
-def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=False, frequency=None, epoch=None, sim=False):
+def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=False, frequency=None, epoch=None, sim=False, bg_counts=0):
 
   fits = pyfits.open(fits_fn)
   swift_t = fits[1].data['Time']
@@ -233,7 +233,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
   phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], 
                                  par.fdots[2], par.fdots[3]) 
 
-  maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim)
+  maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim,bg_counts=bg_counts)
 
   if chandra or xmm:
     midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
