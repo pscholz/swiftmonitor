@@ -212,104 +212,129 @@ def simErr(prof_mod,N_counts,phases,from_template=True):
 
 
 def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False, bg_counts=0):
-  global calcprobtime
-  global logsumtime 
-  global integratetime
+    """
+    Calculate an offset between the observation pulse profile and the template pulse profile.
+       This is done using the raw events (as phases) and a continuous model of the template
+       (prof mod) which is used as a probability distribution.
 
-  probs = []
-  del_off = 0.0001
-  offsets = np.arange(0,1,del_off)
-  offsets = np.append(offsets,1.0)
+       The error in the offset can be determined by integrating the resulting likelihood
+       distribution or by using simulations (by setting sim_err=True). 
 
-  starttime = time.time()
-  for offset in offsets:
-    prob =  calc_prob(phases, offset, prof_mod)  
-    probs.append(prob)
-  calcprobtime += time.time() - starttime
+       The simulations use the total number of counts, which for low S/N the contribution
+       from the background can be large, so bg_counts (set to number of background counts
+       expected in the source extraction region) can be used to correct for that.
+    """
+    global calcprobtime
+    global logsumtime 
+    global integratetime
 
-  starttime = time.time()
-  probs = probs - logsumexp(probs)
-  logsumtime += time.time() - starttime
+    probs = []
+    del_off = 0.0001
+    offsets = np.arange(0,1,del_off)
+    offsets = np.append(offsets,1.0)
 
-  starttime = time.time()
-  probs = np.exp(np.array(probs))
-  area = integrate.trapz(probs,dx=del_off)
-  probs_norm = probs/area
-  integratetime += time.time() - starttime
+    starttime = time.time()
+    for offset in offsets:
+        prob =  calc_prob(phases, offset, prof_mod)  
+        probs.append(prob)
+    calcprobtime += time.time() - starttime
 
-  if sim_err:
-    maxoff = offsets[np.argmax(probs)]
-    error = simErr(prof_mod,len(phases)-bg_counts,phases,from_template=True) 
-  elif no_err:
-    maxoff = offsets[np.argmax(probs)]
-    error = None
-  else:
-    maxoff, error = getErrMid50(offsets, probs_norm, del_off)
-  
-  return maxoff, error
+    starttime = time.time()
+    probs = probs - logsumexp(probs)
+    logsumtime += time.time() - starttime
+
+    starttime = time.time()
+    probs = np.exp(np.array(probs))
+    area = integrate.trapz(probs,dx=del_off)
+    probs_norm = probs/area
+    integratetime += time.time() - starttime
+
+    if sim_err:
+        maxoff = offsets[np.argmax(probs)]
+        error = simErr(prof_mod,len(phases)-bg_counts,phases,from_template=True) 
+    elif no_err:
+        maxoff = offsets[np.argmax(probs)]
+        error = None
+    else:
+        maxoff, error = getErrMid50(offsets, probs_norm, del_off)
+    
+    return maxoff, error
 
 def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=False, frequency=None, epoch=None, \
-               sim=False, bg_counts=0):
+               sim=False, bg_counts=0, Emin=None, Emax=None):
 
-  fits = pyfits.open(fits_fn)
-  swift_t = fits[1].data['Time']
-  if not chandra:
-    exposure = fits[0].header['EXPOSURE']
-  obsid = fits[0].header['OBS_ID']
+    fits = pyfits.open(fits_fn)
 
-  if bg_counts == -99:
-    bg_fits_fn = fits_fn.replace('reg','bgreg')
-    bg_fits = pyfits.open(bg_fits_fn)
-    bg_counts = bg_fits[1].header['NAXIS2']
-    print 'BG Counts:',bg_counts
-    bg_fits.close()
+    if (Emin and Emax):
+        PI_min = int(Emin*100)
+        PI_max = int(Emax*100)
+        swift_t = fits[1].data[(data['PI'] < PI_max) & (data['PI'] > PI_min)]['Time']
+    elif Emin:
+        PI_min = int(Emin*100)
+        swift_t = fits[1].data[data['PI'] > PI_min]['Time']
+    elif Emax:
+        PI_max = int(Emax*100)
+        swift_t = fits[1].data[data['PI'] < PI_max]['Time']
+    else:
+        swift_t = fits[1].data['Time']
 
-  if chandra and xmm:
-    raise ValueError('Data can only be from one of Chandra and XMM!')
-  elif chandra or xmm:
-    t = chandra2mjd(swift_t) # XMM and chandra use same MJDREF
-  else:
-    t = sw2mjd(swift_t)
+    if not chandra:
+        exposure = fits[0].header['EXPOSURE']
+    obsid = fits[0].header['OBS_ID']
 
-  if frequency and epoch:
-    par = lambda: None
-    par.epoch = epoch
-    par.f0 = frequency
-    par.fdots = [0.0,0.0,0.0,0.0]
-  else:
-    par = PSRpar(parfile)
+    if bg_counts == -99:
+        bg_fits_fn = fits_fn.replace('reg','bgreg')
+        bg_fits = pyfits.open(bg_fits_fn)
+        bg_counts = bg_fits[1].header['NAXIS2']
+        print 'BG Counts:',bg_counts
+        bg_fits.close()
 
-  sys.stderr.write('Measuring TOA for %s\n' % obsid)
+    if chandra and xmm:
+        raise ValueError('Data can only be from one of Chandra and XMM!')
+    elif chandra or xmm:
+        t = chandra2mjd(swift_t) # XMM and chandra use same MJDREF
+    else:
+        t = sw2mjd(swift_t)
 
-  phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], 
-                                 par.fdots[2], par.fdots[3]) 
+    if frequency and epoch:
+        par = lambda: None
+        par.epoch = epoch
+        par.f0 = frequency
+        par.fdots = [0.0,0.0,0.0,0.0]
+    else:
+        par = PSRpar(parfile)
 
-  maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim,bg_counts=bg_counts)
+    sys.stderr.write('Measuring TOA for %s\n' % obsid)
 
-  if chandra or xmm:
-    midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
-  else:
-    midtime = ( sw2mjd(fits[0].header['TSTART']) + sw2mjd(fits[0].header['TSTOP']) ) / 2.0
-  p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0])
+    phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], 
+                                   par.fdots[2], par.fdots[3]) 
 
-  t0 = psr_utils.calc_t0(midtime, par.epoch, par.f0, par.fdots[0])
-  t0i = int(t0)
-  t0f = t0 - t0i
+    maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim,bg_counts=bg_counts)
 
-  toaf = t0f + maxoff*p_mid / SECPERDAY
-  newdays = int(np.floor(toaf))
-  psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+    if chandra or xmm:
+      midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
+    else:
+      midtime = ( sw2mjd(fits[0].header['TSTART']) + sw2mjd(fits[0].header['TSTOP']) ) / 2.0
+    p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0])
 
-  if print_offs:
-    print "\t",error*p_mid*1.0e6,"\t",exposure
-    print obsid,"\tOffset:",maxoff,"+/-",error 
+    t0 = psr_utils.calc_t0(midtime, par.epoch, par.f0, par.fdots[0])
+    t0i = int(t0)
+    t0f = t0 - t0i
 
-  fits.close()
+    toaf = t0f + maxoff*p_mid / SECPERDAY
+    newdays = int(np.floor(toaf))
+    psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
 
-  global calcprobtime
-  global logsumtime 
-  global integratetime
+    if print_offs:
+      print "\t",error*p_mid*1.0e6,"\t",exposure
+      print obsid,"\tOffset:",maxoff,"+/-",error 
 
-  sys.stderr.write('\tCalc Prob: %f s\n' % calcprobtime)
-  sys.stderr.write('\tLog Sum: %f s\n' % logsumtime)
-  sys.stderr.write('\tIntegrate Norm: %f s\n' % integratetime)
+    fits.close()
+
+    global calcprobtime
+    global logsumtime 
+    global integratetime
+
+    sys.stderr.write('\tCalc Prob: %f s\n' % calcprobtime)
+    sys.stderr.write('\tLog Sum: %f s\n' % logsumtime)
+    sys.stderr.write('\tIntegrate Norm: %f s\n' % integratetime)
