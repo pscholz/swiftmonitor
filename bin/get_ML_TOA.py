@@ -51,6 +51,14 @@ parser.add_option("--bg-counts",
 		  dest="bg_counts", type='int',
 		  help="Number of counts in background.",
 		  default=0)
+parser.add_option("--Emin",
+		  dest="emin", type='float',
+		  help="Minimum energy of events to use (works only for Swift).",
+		  default=None)
+parser.add_option("--Emax",
+		  dest="emax", type='float',
+		  help="Maximum energy of events to use (works only for Swift).",
+		  default=None)
  
 (options,args) = parser.parse_args()
 
@@ -73,5 +81,6 @@ else:
 
   for fitsfile in flist:
     ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, \
-                      print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts)
+                      print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
+                      Emin=options.emin, Emax=option.emax)
 
