@@ -19,6 +19,10 @@ parser.add_option("--grade0",
                   dest="grade0", action='store_true',
                   help="Extract a grade 0 spectrum.",
                   default=False)
+parser.add_option("--grouping",
+                  dest="grouping", type='int',
+                  help="Minimum counts per bin in grouped spectrum.",
+                  default=20)
 parser.add_option("--backscal",
                   dest="backscal", type='float',
                   help="Value for BACKSCAL keyword.",
@@ -42,7 +46,7 @@ for pickle_file in pickle_list:
   ob = swift_obs.load(pickle_file)
 
   ob.extract_region()
-  ob.extract_spectrum(grade=grade)
+  ob.extract_spectrum(grade=grade, grouping=options.grouping)
   if options.mode == 'wt':
     ob.correct_backscal(value=options.backscal)
   ob.save()
