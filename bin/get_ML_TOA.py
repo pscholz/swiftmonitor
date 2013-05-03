@@ -51,7 +51,6 @@ parser.add_option("--bg-counts",
 		  dest="bg_counts", type='int',
 		  help="Number of counts in background.",
 		  default=0)
-
  
 (options,args) = parser.parse_args()
 
@@ -73,5 +72,6 @@ else:
     flist = args[0:]
 
   for fitsfile in flist:
-    ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts)
+    ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, \
+                      print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts)
 
