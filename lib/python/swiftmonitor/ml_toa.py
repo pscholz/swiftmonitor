@@ -23,8 +23,8 @@ def logsumexp(array):
     """
     if len(array) == 2:
         return np.logaddexp(array[0],array[1])
-
-    return np.logaddexp(array[0],logsumexp(array[1:]))
+    else:
+        return np.logaddexp(array[0],logsumexp(array[1:]))
 
 def sw2mjd(times):
     """
@@ -220,7 +220,7 @@ def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False, bg_counts=0):
        The error in the offset can be determined by integrating the resulting likelihood
        distribution or by using simulations (by setting sim_err=True). 
 
-       The simulations use the total number of counts, which for low S/N the contribution
+       The simulations use the total number of source counts, which for low S/N the contribution
        from the background can be large, so bg_counts (set to number of background counts
        expected in the source extraction region) can be used to correct for that.
     """
@@ -239,15 +239,19 @@ def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False, bg_counts=0):
         probs.append(prob)
     calcprobtime += time.time() - starttime
 
+    # normalise as likelihood with logsumexp 
     starttime = time.time()
-    probs = probs - logsumexp(probs)
+    logsum = logsumexp(probs)
+    probs = probs - logsum - np.log(del_off)
+    probs_norm = np.exp(np.array(probs))
     logsumtime += time.time() - starttime
 
-    starttime = time.time()
-    probs = np.exp(np.array(probs))
-    area = integrate.trapz(probs,dx=del_off)
-    probs_norm = probs/area
-    integratetime += time.time() - starttime
+    ## OR normalise as prob using numpy integration (doesn't do well with lots of events, like chandra)
+    #starttime = time.time()
+    #probs = np.exp(np.array(probs))
+    #area = integrate.trapz(probs,dx=del_off)
+    #probs_norm = probs/area
+    #integratetime += time.time() - starttime
 
     if sim_err:
         maxoff = offsets[np.argmax(probs)]
@@ -263,20 +267,24 @@ def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False, bg_counts=0):
 def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=False, frequency=None, epoch=None, \
                sim=False, bg_counts=0, Emin=None, Emax=None):
 
+
+    print_timings = False # if want to print summary of runtime
+
     fits = pyfits.open(fits_fn)
+    data = fits[1].data
 
     if (Emin and Emax):
         PI_min = int(Emin*100)
         PI_max = int(Emax*100)
-        swift_t = fits[1].data[(data['PI'] < PI_max) & (data['PI'] > PI_min)]['Time']
+        swift_t = data[(data['PI'] < PI_max) & (data['PI'] > PI_min)]['Time']
     elif Emin:
         PI_min = int(Emin*100)
-        swift_t = fits[1].data[data['PI'] > PI_min]['Time']
+        swift_t = data[data['PI'] > PI_min]['Time']
     elif Emax:
         PI_max = int(Emax*100)
-        swift_t = fits[1].data[data['PI'] < PI_max]['Time']
+        swift_t = data[data['PI'] < PI_max]['Time']
     else:
-        swift_t = fits[1].data['Time']
+        swift_t = data['Time']
 
     if not chandra:
         exposure = fits[0].header['EXPOSURE']
@@ -331,10 +339,11 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
 
     fits.close()
 
-    global calcprobtime
-    global logsumtime 
-    global integratetime
+    if print_timings:
+        global calcprobtime
+        global logsumtime 
+        global integratetime
 
-    sys.stderr.write('\tCalc Prob: %f s\n' % calcprobtime)
-    sys.stderr.write('\tLog Sum: %f s\n' % logsumtime)
-    sys.stderr.write('\tIntegrate Norm: %f s\n' % integratetime)
+        sys.stderr.write('\tCalc Prob: %f s\n' % calcprobtime)
+        sys.stderr.write('\tLog Sum: %f s\n' % logsumtime)
+        sys.stderr.write('\tIntegrate Norm: %f s\n' % integratetime)
