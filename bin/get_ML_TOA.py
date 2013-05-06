@@ -82,5 +82,5 @@ else:
   for fitsfile in flist:
     ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, \
                       print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
-                      Emin=options.emin, Emax=option.emax)
+                      Emin=options.emin, Emax=options.emax)
 
