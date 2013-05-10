@@ -320,9 +320,9 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
     maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim,bg_counts=bg_counts)
 
     if chandra or xmm:
-      midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
+        midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
     else:
-      midtime = ( sw2mjd(fits[0].header['TSTART']) + sw2mjd(fits[0].header['TSTOP']) ) / 2.0
+        midtime = ( sw2mjd(fits[0].header['TSTART']) + sw2mjd(fits[0].header['TSTOP']) ) / 2.0
     p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0])
 
     t0 = psr_utils.calc_t0(midtime, par.epoch, par.f0, par.fdots[0])
@@ -334,8 +334,8 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
     psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
 
     if print_offs:
-      print "\t",error*p_mid*1.0e6,"\t",exposure
-      print obsid,"\tOffset:",maxoff,"+/-",error 
+        print "\t",error*p_mid*1.0e6,"\t",exposure
+        print obsid,"\tOffset:",maxoff,"+/-",error 
 
     fits.close()
 
