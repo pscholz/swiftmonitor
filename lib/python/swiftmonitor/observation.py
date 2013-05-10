@@ -88,23 +88,24 @@ class Observation:
     obsid = self.obsid
 
     if self.mode == 'wt':
-      cmd = subprocess.Popen(['browse_extract_wget.pl', 'table=swiftxrlog', 'position=none', 'operation_mode=WINDOWED', 
-                              'pointing_mode=pointing', 'param=obsid,' + obsid ],stdout=subprocess.PIPE)
+      cmd = subprocess.Popen(['browse_extract_wget.pl', 'table=swiftxrlog', 'position=none', 'param=obsid,' + obsid ],
+                               stdout=subprocess.PIPE)
       point_re = re.compile("^\|.*WINDOWED\|pointing(?!_mode)")
     elif self.mode == 'pc':
-      cmd = subprocess.Popen(['browse_extract_wget.pl', 'table=swiftxrlog', 'position=none', 'operation_mode=PHOTON', 
-                              'pointing_mode=pointing', 'param=obsid,' + obsid ],stdout=subprocess.PIPE)
+      cmd = subprocess.Popen(['browse_extract_wget.pl', 'table=swiftxrlog', 'position=none', 'param=obsid,' + obsid ],
+                               stdout=subprocess.PIPE)
       point_re = re.compile("^\|.*PHOTON\|pointing(?!_mode)")
   
     date = None
     window = None
 
     tabledown_re = re.compile('Tableswiftxrlogdoesnotseemtoexist!')
+    norows_re = re.compile('returns0rows')
 
     for line in cmd.stdout:
       line = line.replace(' ','')
       print line
-      if tabledown_re.search(line):
+      if tabledown_re.search(line) or norows_re.search(line):
         raise TableDownError
       if point_re.match(line):
 	split_line = line.split('|')
@@ -164,7 +165,19 @@ class Observation:
     """
     print "Querying HEASARC...\n"
   
-    obsfile, orbitfile, obsurl = self._query_heasarc()
+    # attempt 5 times to retrieve data from heasarc (table often returns empty for no reason) 
+    attempts = 0
+    while attempts < 5:
+        try:
+            obsfile, orbitfile, obsurl = self._query_heasarc()
+        except TableDownError:
+            attempts += 1
+            time.sleep(30)
+        else:
+            break
+        
+    if attempts >= 5:
+        raise TableDownError
 
     print "Downloading observation...\n"
 
@@ -180,7 +193,19 @@ class Observation:
   def download_raw(self):
     print "Querying HEASARC...\n"
   
-    obsfile, orbitfile, obsurl = self._query_heasarc()
+    # attempt 5 times to retrieve data from heasarc (table often returns empty for no reason) 
+    attempts = 0
+    while attempts < 5:
+        try:
+            obsfile, orbitfile, obsurl = self._query_heasarc()
+        except TableDownError:
+            attempts += 1
+            time.sleep(30)
+        else:
+            break
+        
+    if attempts >= 5:
+        raise TableDownError
 
     print "Downloading observation (all data)...\n"
     
