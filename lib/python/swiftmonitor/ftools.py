@@ -5,191 +5,191 @@ import subprocess
 import re
 
 def timed_execute(cmd): 
-  """
-  Execute the command 'cmd' after logging the command
-    to STDOUT.  Return the wall-clock amount of time
-    the command took to execute.
-  """
-  sys.stdout.write("\n'"+cmd+"'\n")
-  sys.stdout.flush()
-  start = time.time()
-  os.system(cmd)
-  end = time.time()
-  return end - start
+    """
+    Execute the command 'cmd' after logging the command
+      to STDOUT.  Return the wall-clock amount of time
+      the command took to execute.
+    """
+    sys.stdout.write("\n'"+cmd+"'\n")
+    sys.stdout.flush()
+    start = time.time()
+    os.system(cmd)
+    end = time.time()
+    return end - start
 
 def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=None,\
             grade=None,gtifile=None,chanlow=0,chanhigh=1023):
-  """
-  Wrapper for extractor ftool. If infile is None will use baryfile or obsfile as input.
+    """
+    Wrapper for extractor ftool. If infile is None will use baryfile or obsfile as input.
  
-    Arguments:
-      - outroot: root of the output files. Will attach extension depending on
-                 type of output (.img, .evt, etc.)
-      - infile: Input file to extract from.
+      Arguments:
+        - outroot: root of the output files. Will attach extension depending on
+                   type of output (.img, .evt, etc.)
+        - infile: Input file to extract from.
 
-    Optional Arguments:
-      - events: Boolean of whether or not to extract events file. 
-                Default=True.
-      - image: Boolean of whether or not to extract image file. 
+      Optional Arguments:
+        - events: Boolean of whether or not to extract events file. 
+                  Default=True.
+        - image: Boolean of whether or not to extract image file. 
+                 Default=False.
+        - pha: Boolean of whether or not to extract spectrum. 
                Default=False.
-      - pha: Boolean of whether or not to extract spectrum. 
-             Default=False.
-      - lc: Boolean of whether or not to extract binned light curve. 
-            Default=False. 
-      - region: Filename (with path) of region file to extract from region. 
-                Default=False.
-     
-  """
+        - lc: Boolean of whether or not to extract binned light curve. 
+              Default=False. 
+        - region: Filename (with path) of region file to extract from region. 
+                  Default=False.
+       
+    """
 
-  args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE xcolh=X ycolh=Y gti='GTI' " %\
-          (infile, chanlow, chanhigh)
+    args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE xcolh=X ycolh=Y gti='GTI' " %\
+            (infile, chanlow, chanhigh)
 
-  if image:
-    args += 'imgfile=%s.img ' % outroot
-  else:
-    args += 'imgfile=NONE '
-  if pha:
-    args += 'phafile=%s.pha ' % outroot
-  else:
-    args += 'phafile=NONE '
-  if lc:
-    args += 'fitsbinlc=%s.lc ' % outroot
-  else:
-    args += 'fitsbinlc=NONE '
-  if events:
-    args += 'eventsout=%s.evt ' % outroot
-  else:
-    args += 'eventsout=NONE '
-  if region:
-    args += 'regionfile=%s ' % region
-  else:
-    args += 'regionfile=NONE '
-  if gtifile:
-    args += 'timefile=%s ' % gtifile
-  else:
-    args += 'timefile=NONE '
-  if grade:
-    args += 'gstring=%s ' % grade
+    if image:
+      args += 'imgfile=%s.img ' % outroot
+    else:
+      args += 'imgfile=NONE '
+    if pha:
+      args += 'phafile=%s.pha ' % outroot
+    else:
+      args += 'phafile=NONE '
+    if lc:
+      args += 'fitsbinlc=%s.lc ' % outroot
+    else:
+      args += 'fitsbinlc=NONE '
+    if events:
+      args += 'eventsout=%s.evt ' % outroot
+    else:
+      args += 'eventsout=NONE '
+    if region:
+      args += 'regionfile=%s ' % region
+    else:
+      args += 'regionfile=NONE '
+    if gtifile:
+      args += 'timefile=%s ' % gtifile
+    else:
+      args += 'timefile=NONE '
+    if grade:
+      args += 'gstring=%s ' % grade
 
-  args += 'clobber=yes'
-  cmd = 'extractor ' + args 
-  extract_time = timed_execute(cmd)
+    args += 'clobber=yes'
+    cmd = 'extractor ' + args 
+    extract_time = timed_execute(cmd)
 
 def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True):
-  """
-  Finds centroid of source (hopefully)
-    Returns x, y coordinates of centroid in pixels.
-  """
+    """
+    Finds centroid of source (hopefully)
+      Returns x, y coordinates of centroid in pixels.
+    """
 
-  if not imagefile:
-    extract("temp", infile=event_file, image=True,events=False)
-    imagefile = 'temp.img'
+    if not imagefile:
+      extract("temp", infile=event_file, image=True,events=False)
+      imagefile = 'temp.img'
 
-  if use_max:
-    fits = pyfits.open(imagefile)
-    image = fits[0].data
-    fits.close()
-  
-    y,x = np.unravel_index(np.argmax(image),np.shape(image))
-    x += 1
-    y += 1
+    if use_max:
+      fits = pyfits.open(imagefile)
+      image = fits[0].data
+      fits.close()
+    
+      y,x = np.unravel_index(np.argmax(image),np.shape(image))
+      x += 1
+      y += 1
 
-  #else:
+    #else:
 
-  #  if self.centroidx != None and self.centroidy != None and force_redo == False:
-  #    return self.centroidx, self.centroidy
+    #  if self.centroidx != None and self.centroidy != None and force_redo == False:
+    #    return self.centroidx, self.centroidy
 
 
-  #  if self.pulsar:
-  #    cmd = subprocess.Popen(['ximage', '@/homes/borgii/pscholz/bin/swiftmonitor/wt_centroid_radec.xco',\
-  #    			  self.path + self.imagefile, str(self.ra), str(self.dec) ], stdout=subprocess.PIPE) 
-  #  else:  
-  #    cmd = subprocess.Popen(['ximage', '@/homes/borgii/pscholz/bin/swiftmonitor/wt_centroid.xco',\
-  #    			  self.path + self.imagefile], stdout=subprocess.PIPE) 
+    #  if self.pulsar:
+    #    cmd = subprocess.Popen(['ximage', '@/homes/borgii/pscholz/bin/swiftmonitor/wt_centroid_radec.xco',\
+    #    			  self.path + self.imagefile, str(self.ra), str(self.dec) ], stdout=subprocess.PIPE) 
+    #  else:  
+    #    cmd = subprocess.Popen(['ximage', '@/homes/borgii/pscholz/bin/swiftmonitor/wt_centroid.xco',\
+    #    			  self.path + self.imagefile], stdout=subprocess.PIPE) 
 
-  #  region_re = re.compile('^[ ]*X/Ypix')
-  #  for line in cmd.stdout:
-  #    if region_re.match(line):
-  #     split_line = line.split()
-  #     x,y = split_line[2], split_line[3] 
+    #  region_re = re.compile('^[ ]*X/Ypix')
+    #  for line in cmd.stdout:
+    #    if region_re.match(line):
+    #     split_line = line.split()
+    #     x,y = split_line[2], split_line[3] 
  
-  return x,y
+    return x,y
 
 def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None,energy_high=None,\
                      grouping=20,grade=None,expmap=None,source_region=None,back_region=None):
-  """
-  Extract a spectrum.
-    If both the PHA channel limits and energy limits are None will extract entire band.
+    """
+    Extract a spectrum.
+      If both the PHA channel limits and energy limits are None will extract entire band.
 
-    Arguments:
-      - outroot: root of the output files. Will attach extension depending on
-                 type of output (.img, .evt, etc.)
-      - infile: Input file to extract from.
+      Arguments:
+        - outroot: root of the output files. Will attach extension depending on
+                   type of output (.img, .evt, etc.)
+        - infile: Input file to extract from.
 
-    Optional Arguments:
-      - chan_low, chan_high: limits of PHA channels to extract.
-                             Default = None. 
-      - energy_low, energy_high: energy limits in keV to extract. 
-                                 Will be superceded by chan_low and chan_high.
-                                 Default=None.
-      - grouping: the minimum counts per bin for the spectrum.
-                  Default=20
-      - expmap: exposure map file to use in xrtmkarf.
-                  Default=None
-      - source_region: region file to use to extract source spectrum.
-                  Default=None
-      - back_region: region file to use to extract background spectrum.
-                  Default=None
+      Optional Arguments:
+        - chan_low, chan_high: limits of PHA channels to extract.
+                               Default = None. 
+        - energy_low, energy_high: energy limits in keV to extract. 
+                                   Will be superceded by chan_low and chan_high.
+                                   Default=None.
+        - grouping: the minimum counts per bin for the spectrum.
+                    Default=20
+        - expmap: exposure map file to use in xrtmkarf.
+                    Default=None
+        - source_region: region file to use to extract source spectrum.
+                    Default=None
+        - back_region: region file to use to extract background spectrum.
+                    Default=None
 
-  """
-  print "Extracting spectrum...\n"
+    """
+    print "Extracting spectrum...\n"
 
-  if chan_high == None or chan_low == None:
-    if energy_low == None or energy_high == None:
-      chan_low = 0
-      chan_high = 1023
+    if chan_high == None or chan_low == None:
+      if energy_low == None or energy_high == None:
+        chan_low = 0
+        chan_high = 1023
+      else:
+        chan_low = int( energy_low * 100.0 )
+        chan_high = int( energy_high * 100.0 )
+
+    # FIX THIS 
+    x, y = find_centroid(infile)
+
+    if grade:
+      outroot += '_g%s' % grade
+
+    extract(outroot + "_source",infile=infile, events=False, pha=True,\
+                   region=source_region, chanlow=chan_low, chanhigh=chan_high,grade=grade)  
+    extract(outroot + "_back",infile=infile, events=False, pha=True,\
+                   region=back_region, chanlow=chan_low, chanhigh=chan_high,grade=grade)  
+
+    cmd = "xrtmkarf outfile=%s_source.arf phafile=%s_source.pha psfflag=yes srcx=%s srcy=%s clobber=yes"%\
+          (outroot, outroot, x, y) 
+    if expmap:
+      cmd += " expofile=%s" % (expmap)
+
+    pipe = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
+    xrtmkarf_out = pipe.stdout.read()
+    pipe.stdout.close() 
+    print xrtmkarf_out
+
+    rmf_re = re.compile("Processing \'(?P<rmf>.*)\.rmf\' CALDB file\.")
+    rmf_search = rmf_re.search(xrtmkarf_out)
+    if rmf_search:
+      rmf = rmf_search.groupdict()['rmf'] + '.rmf'
     else:
-      chan_low = int( energy_low * 100.0 )
-      chan_high = int( energy_high * 100.0 )
+      print "ERROR: No rmf filename found from xrtmkarf output."
 
-  # FIX THIS 
-  x, y = find_centroid(infile)
+    if grade and grade != '0':
+      print "Grade selection not 0 or default, rmf in 'respfile' keyword may be wrong."
 
-  if grade:
-    outroot += '_g%s' % grade
+    grppha_comm = "chkey backfile %s_back.pha & chkey ancrfile %s_source.arf & chkey respfile %s"%\
+                  (outroot, outroot, rmf)\
+                  + " & group min %d & exit" % grouping
 
-  extract(outroot + "_source",infile=infile, events=False, pha=True,\
-                 region=source_region, chanlow=chan_low, chanhigh=chan_high,grade=grade)  
-  extract(outroot + "_back",infile=infile, events=False, pha=True,\
-                 region=back_region, chanlow=chan_low, chanhigh=chan_high,grade=grade)  
-
-  cmd = "xrtmkarf outfile=%s_source.arf phafile=%s_source.pha psfflag=yes srcx=%s srcy=%s clobber=yes"%\
-        (outroot, outroot, x, y) 
-  if expmap:
-    cmd += " expofile=%s" % (expmap)
-
-  pipe = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
-  xrtmkarf_out = pipe.stdout.read()
-  pipe.stdout.close() 
-  print xrtmkarf_out
-
-  rmf_re = re.compile("Processing \'(?P<rmf>.*)\.rmf\' CALDB file\.")
-  rmf_search = rmf_re.search(xrtmkarf_out)
-  if rmf_search:
-    rmf = rmf_search.groupdict()['rmf'] + '.rmf'
-  else:
-    print "ERROR: No rmf filename found from xrtmkarf output."
-
-  if grade and grade != '0':
-    print "Grade selection not 0 or default, rmf in 'respfile' keyword may be wrong."
-
-  grppha_comm = "chkey backfile %s_back.pha & chkey ancrfile %s_source.arf & chkey respfile %s"%\
-                (outroot, outroot, rmf)\
-                + " & group min %d & exit" % grouping
-
-  cmd = "grppha infile=%s_source.pha outfile=%s_source.pha.grp clobber=yes comm=\"%s\""%\
-        (outroot, outroot, grppha_comm)
-  timed_execute(cmd)
+    cmd = "grppha infile=%s_source.pha outfile=%s_source.pha.grp clobber=yes comm=\"%s\""%\
+          (outroot, outroot, grppha_comm)
+    timed_execute(cmd)
 
 def split_GTI(infile):
     """
@@ -212,6 +212,10 @@ def split_GTI(infile):
         outroot = os.path.splitext(infile)[0] + "_s" + str(i+1)  
      
         extract(outroot, infile=infile, events=True, gtifile=tempgti_fn)
+
+        cmd = "fappend %s[BADPIX] %s.evt" % (infile, outroot)
+        timed_execute(cmd)
+
         os.remove(tempgti_fn)
   
 def make_expomap(infile, attfile, hdfile, stemout=None, outdir="./"):
@@ -230,9 +234,87 @@ def make_expomap(infile, attfile, hdfile, stemout=None, outdir="./"):
                   Default is the current working dir.
     """
 
-    cmd = "xrtexpomap infile=%s attfile=%s hdfile=%s outdir=%s" % (infile, attfile, hdfile, outdir)
+    cmd = "xrtexpomap infile=%s attfile=%s hdfile=%s outdir=%s clobber=yes " % (infile, attfile, hdfile, outdir)
     if stemout:
         cmd += "stemout=%s " % stemout 
+    else:
+        cmd += "stemout=%s " % os.path.splitext(infile)[0]
     
     timed_execute(cmd)
 
+def make_wt_regions(event_file, source_rad, back_rad, source_fn='source.reg', back_fn='back.reg'):
+    """
+    Create source and background .reg files. Source is a circle of radius=source_rad and ...
+    """
+
+    x, y = find_centroid(event_file)
+
+    source_reg = region('circle', [source_rad], [x,y])
+    back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [x,y])
+
+    source_reg.write(source_fn)
+    back_reg.write(back_fn)
+
+class region:
+    """
+    Class containing info from a region file.
+    """
+    
+    def __init__(self, shape, dimensions, location, coords='physical'):
+        self.dim = dimensions
+        self.shape = shape 
+        self.loc = location
+        self.coords = coords
+        self.region_str = self.get_region_str()
+
+    def get_region_str(self):
+        # TODO: add other shapes and assert that shape is available
+        if self.shape is 'circle':
+            region_str = 'circle(%s,%s,%d)' % (self.loc[0], self.loc[1], self.dim[0])
+        if self.shape is 'annulus':
+            region_str = 'annulus(%s,%s,%d,%d)' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
+        return region_str
+
+    def write(self,output_fn):
+        f = open(output_fn, 'w')
+        region = '# Region file format: DS9 version 4.1\nglobal color=green dashlist=8 3 width=1 font="helvetica 10 normal"'\
+             + ' select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n'
+        region += self.coords + "\n"
+        region += self.region_str
+        f.write(region)
+        f.close()
+    
+    def __str__(self):
+        return self.shape + ":\nDimension: " + str(self.dim) + "\nLocation: " + str(self.loc)
+
+def read_region_file(region_fn):
+    """
+    Reads a region file and returns a 'region' object.
+    """
+    region_file = open(region_fn)
+    lines = region_file.readlines()
+    region_file.close()
+
+    for line in lines:
+        if line.startswith('#'):
+            lines.remove(line)
+
+    coords = lines[1]
+    region_str = lines[2]
+
+    print coords
+    print region_str
+
+    reg_split = region_str.split('(')
+    reg_type = reg_split[0]
+    params = reg_split[1].rstrip().rstrip(')').split(',')
+    
+    if reg_type == 'circle':
+      x, y, r = float(params[0]),float(params[1]),float(params[2])
+      reg_obj = region('circle', [r], [x,y], coords)
+
+    elif reg_type == 'annulus':
+      x, y, r1, r2 = float(params[0]),float(params[1]),float(params[2]),float(params[3])
+      reg_obj = region('annulus', [r1,r2], [x,y], coords)
+
+    return reg_obj
