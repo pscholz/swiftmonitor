@@ -191,3 +191,48 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
         (outroot, outroot, grppha_comm)
   timed_execute(cmd)
 
+def split_GTI(infile):
+    """
+    Split an event file into separate event files for each GTI.
+
+      Arguments:
+        - infile: Input events file to split.
+    """
+
+    fits = pyfits.open(infile)
+    rows = float(fits['GTI'].header['NAXIS2'])
+    fits.close()
+
+    for i in range(rows):
+        
+        tempgti_fn = "tempGTI_%d.fits" % (i+1)
+        cmd = "fcopy %s[GTI][#row==%d] %s" % (infile, i+1, tempgti_fn)
+        timed_execute(cmd)
+
+        outroot = os.path.splitext(infile)[0] + "_s" + str(i+1)  
+     
+        extract(outroot, infile=infile, events=True, gtifile=tempgti_fn)
+        os.remove(tempgti_fn)
+  
+def make_expomap(infile, attfile, hdfile, stemout=None, outdir="./"):
+    """
+    Make an exposure map for an event file. Wraps xrtexpomap.
+
+      Arguments:
+        - infile: Name of the input cleaned event FITS file.
+        - attfile: Name of the input Attitude FITS file.
+        - hdfile: Name of the input Housekeeping Header Packets FITS file.
+
+      Optional Arguments:
+        - stemout: Stem for the output files.
+                   Default is standard Swift naming convention.
+        - outdir: Directory for the output files.
+                  Default is the current working dir.
+    """
+
+    cmd = "xrtexpomap infile=%s attfile=%s hdfile=%s outdir=%s" % (infile, attfile, hdfile, outdir)
+    if stemout:
+        cmd += "stemout=%s " % stemout 
+    
+    timed_execute(cmd)
+
