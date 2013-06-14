@@ -3,6 +3,7 @@ import numpy as np
 import subprocess, re, pickle
 import pyfits
 import swiftmonitor.config
+from swiftmonitor import ftools
 
 class TableDownError(Exception):
   def __str__(self):
@@ -525,6 +526,41 @@ class Observation:
 
     self.spectrum = "%s_source.pha.grp" % (outroot)
     self.bg_spectrum = "%s_back.pha" % (outroot)
+
+  def extract_spectrum_seporb(self,infile=None,chan_low=None,chan_high=None,energy_low=None,energy_high=None,grouping=20,grade=None):
+    outroot = self.obsroot 
+
+    if grade:
+      outroot += '_g%s' % grade
+
+    if infile == None:
+        print "Using obsfile as input."
+        infile = self.path + self.obsfile
+
+    split_files = ftools.split_GTI(infile)
+
+    split_spectra = []
+    for split_file in split_files:
+
+        #TEMP UNTIL HAVE BETTER WAY
+        attfile = glob.glob(os.path.join(self.path,'raw/auxil/sw*sat.fits.gz'))[0]
+        hdfile = glob.glob(os.path.join(self.path,'raw/xrt/hk/sw*hd.hk.gz'))[0]
+        ##
+
+        ftools.make_expomap(split_file, attfile, hdfile)
+
+        split_root = os.path.splitext(split_file)[0]
+        expomap = split_root + '_ex.img'
+
+        ftools.extract_spectrum(split_root, split_file, expmap=expomap, grade=grade, grouping=grouping,\
+                                chan_low=chan_low,chan_high=chan_high,energy_low=energy_low,energy_high=energy_high,\
+                                source_region=self.path + self.src_region, back_region=self.path + self.back_region)
+            
+        split_spectrum = '%s_g%s_source.pha' % (split_root,grade) if grade else '%s_source.pha' % split_root
+
+        split_spectra.append(split_spectrum)
+
+    ftools.add_spectra(split_spectra, self.path + outroot + '_seporb')
 
   def fit_spectrum(self, spectrum=None):
     """
