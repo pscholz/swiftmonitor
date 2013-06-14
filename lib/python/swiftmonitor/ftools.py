@@ -158,13 +158,13 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
     if grade:
       outroot += '_g%s' % grade
 
-    extract(outroot + "_source",infile=infile, events=False, pha=True,\
+    extract("temp_source",infile=infile, events=False, pha=True,\
                    region=source_region, chanlow=chan_low, chanhigh=chan_high,grade=grade)  
     extract(outroot + "_back",infile=infile, events=False, pha=True,\
                    region=back_region, chanlow=chan_low, chanhigh=chan_high,grade=grade)  
 
-    cmd = "xrtmkarf outfile=%s_source.arf phafile=%s_source.pha psfflag=yes srcx=%s srcy=%s clobber=yes"%\
-          (outroot, outroot, x, y) 
+    cmd = "xrtmkarf outfile=%s_source.arf phafile=temp_source.pha psfflag=yes srcx=%s srcy=%s clobber=yes"%\
+          (outroot, x, y) 
     if expmap:
       cmd += " expofile=%s" % (expmap)
 
@@ -184,12 +184,16 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
       print "Grade selection not 0 or default, rmf in 'respfile' keyword may be wrong."
 
     grppha_comm = "chkey backfile %s_back.pha & chkey ancrfile %s_source.arf & chkey respfile %s"%\
-                  (outroot, outroot, rmf)\
-                  + " & group min %d & exit" % grouping
+                  (outroot, outroot, rmf)
+    if grouping:
+      grppha_comm += " & group min %d" % grouping
+    grppha_comm += " & exit"
 
-    cmd = "grppha infile=%s_source.pha outfile=%s_source.pha.grp clobber=yes comm=\"%s\""%\
-          (outroot, outroot, grppha_comm)
+    cmd = "grppha infile=temp_source.pha outfile=%s_source.pha clobber=yes comm=\"%s\""%\
+          (outroot, grppha_comm)
     timed_execute(cmd)
+
+    os.remove('temp_source.pha')
 
 def split_GTI(infile):
     """
