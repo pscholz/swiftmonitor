@@ -242,19 +242,6 @@ def make_expomap(infile, attfile, hdfile, stemout=None, outdir="./"):
     
     timed_execute(cmd)
 
-def make_wt_regions(event_file, source_rad, back_rad, source_fn='source.reg', back_fn='back.reg'):
-    """
-    Create source and background .reg files. Source is a circle of radius=source_rad and ...
-    """
-
-    x, y = find_centroid(event_file)
-
-    source_reg = region('circle', [source_rad], [x,y])
-    back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [x,y])
-
-    source_reg.write(source_fn)
-    back_reg.write(back_fn)
-
 class region:
     """
     Class containing info from a region file.
@@ -291,7 +278,7 @@ def read_region_file(region_fn):
     """
     Reads a region file and returns a 'region' object.
     """
-    region_file = open(region_fn)
+    region_file = open(region_fn,'r')
     lines = region_file.readlines()
     region_file.close()
 
@@ -301,9 +288,6 @@ def read_region_file(region_fn):
 
     coords = lines[1]
     region_str = lines[2]
-
-    print coords
-    print region_str
 
     reg_split = region_str.split('(')
     reg_type = reg_split[0]
@@ -318,3 +302,42 @@ def read_region_file(region_fn):
       reg_obj = region('annulus', [r1,r2], [x,y], coords)
 
     return reg_obj
+
+def make_wt_regions(event_file, source_rad, back_rad, source_fn='source.reg', back_fn='back.reg'):
+    """
+    Create source and background .reg files. Source is a circle of radius=source_rad and ...
+    """
+
+    x, y = find_centroid(event_file)
+
+    source_reg = region('circle', [source_rad], [x,y])
+    back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [x,y])
+
+    source_reg.write(source_fn)
+    back_reg.write(back_fn)
+
+def correct_backscal(source_file, back_file, source_reg_fn, back_reg_fn):
+    """
+    Corrects the BACKSCAL keyword in the source_file and back_file spectra.
+      Assumes the default WT mode regions which are:
+	Source: Circle of radius X pixels
+	Background: Annulus with inner radius 100-Y pixels and outer radius 100+Y pixels
+          where X and Y are determined from the region files.
+    """
+    source_reg = read_region_file(source_reg_fn)
+    back_reg = read_region_file(back_reg_fn)
+
+    if source_reg.shape is 'circle' and back_reg.shape is 'annulus':
+        source_backscal = 2*source_reg.dim[0]
+        back_backscal = back_reg.dim[1] - back_reg.dim[0] - 1
+    else:
+        raise ValueError("Regions not 'default' shapes.")
+
+    
+    hdus = pyfits.open(source_file, mode='update')
+    hdus[1].header['BACKSCAL'] = source_backscal
+    hdus.close()
+    
+    hdus = pyfits.open(back_file, mode='update')
+    hdus[1].header['BACKSCAL'] = back_backscal
+    hdus.close()
