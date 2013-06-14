@@ -195,6 +195,31 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
 
     os.remove('temp_source.pha')
 
+def add_spectra(spec_list, outroot):
+    """
+    Add pha files together. Wraps addspec ftool.
+    """
+
+    assert isinstance(spec_list,list) or isinstance(spec_list,str),\
+           "spec_list should be a list or a string. It is %s" % type(spec_list)
+
+    temp_list = False
+    if isinstance(spec_list, list):
+        f = open('temp_spec.list','w')
+        for spec in spec_list:
+            f.write(spec + "\n")
+        f.close()
+        spec_list = 'temp_spec.list'
+        temp_list = True
+
+    cmd = "addspec %s %s yes yes" % (spec_list, outroot)
+    timed_execute(cmd)
+
+    if temp_list:
+        os.remove('temp_spec.list')
+    
+    
+
 def split_GTI(infile):
     """
     Split an event file into separate event files for each GTI.
@@ -249,6 +274,7 @@ def make_expomap(infile, attfile, hdfile, stemout=None, outdir="./"):
 class region:
     """
     Class containing info from a region file.
+      shape(loc[0],loc[1],dim[0],dim[1],...)
     """
     
     def __init__(self, shape, dimensions, location, coords='physical'):
