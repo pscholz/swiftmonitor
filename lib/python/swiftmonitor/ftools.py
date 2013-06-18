@@ -197,7 +197,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
 
 def add_spectra(spec_list, outroot, grouping=None):
     """
-    Add pha files together. Wraps addspec ftool.
+    Add pha files together. Reimplements addspec ftool.
     """
 
     back_tmp_spec = []
