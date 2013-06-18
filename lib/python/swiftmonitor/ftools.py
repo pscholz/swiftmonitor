@@ -1,4 +1,4 @@
-import os, sys, time
+import os, sys, time, shutil
 import pyfits
 import numpy as np
 import subprocess
@@ -195,29 +195,91 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
 
     os.remove('temp_source.pha')
 
-def add_spectra(spec_list, outroot):
+def add_spectra(spec_list, outroot, grouping=None):
     """
     Add pha files together. Wraps addspec ftool.
     """
 
-    assert isinstance(spec_list,list) or isinstance(spec_list,str),\
-           "spec_list should be a list or a string. It is %s" % type(spec_list)
+    back_tmp_spec = []
+    src_tmp_spec = []
+    weights = []
+    resp_files = []
+    i = 0
 
-    temp_list = False
-    if isinstance(spec_list, list):
-        f = open('temp_spec.list','w')
-        for spec in spec_list:
-            f.write(spec + "\n")
-        f.close()
-        spec_list = 'temp_spec.list'
-        temp_list = True
+    for spec in spec_list:
+        fits = pyfits.open(spec)
+        back_fn = fits[1].header['BACKFILE']
+        ancr_fn = fits[1].header['ANCRFILE']
+        resp_fn = fits[1].header['RESPFILE']
+        exposure = fits[1].header['EXPOSURE']
+        fits.close()
 
-    cmd = "addspec %s %s yes yes" % (spec_list, outroot)
+        i += 1
+        temp_root = 'temp_spec' + str(i)
+
+        # copy source spectra to cwd
+        tmp_spec = temp_root + '.pha' 
+        shutil.copy(spec,tmp_spec) 
+        src_tmp_spec.append(tmp_spec)
+        
+        # copy back spectra to cwd
+        tmp_spec = temp_root+ '.bak' 
+        shutil.copy(back_fn,tmp_spec) 
+        back_tmp_spec.append(tmp_spec)
+
+        # copy arf file to cwd
+        tmp_arf = temp_root + '.arf' 
+        shutil.copy(ancr_fn,tmp_arf) 
+
+        # copy response matrix to prevent corrupting original
+        tmp_rmf = temp_root + '.rmf'
+        shutil.copy(resp_fn,tmp_rmf)
+
+        tmp_rsp = os.path.splitext(os.path.basename(spec))[0] + '.rsp_tmp'
+        cmd = 'marfrmf rmfil=%s arfil=%s outfil=%s' % (tmp_rmf, tmp_arf, tmp_rsp) 
+        timed_execute(cmd)
+
+        resp_files.append(tmp_rsp)
+        weights.append(exposure)
+        os.remove(tmp_rmf)
+        os.remove(tmp_arf)
+
+    src_math_expr = '+'.join(src_tmp_spec)
+    back_math_expr = '+'.join(back_tmp_spec)
+
+    weights = weights / np.sum(weights) # response files weighted by exposure time
+    weights_str = ','.join(map(str, weights))
+    resp_str = ','.join(resp_files)
+
+    cmd = "addrmf list=%s weights=%s rmffile=%s" % (resp_str,weights_str,outroot + '.rsp')
     timed_execute(cmd)
 
-    if temp_list:
-        os.remove('temp_spec.list')
-    
+    cmd = "mathpha expr=%s units=C outfil=temp_final_spec.bak exposure=CALC areascal='%%' backscal='%%' ncomment=0" % (back_math_expr)
+    timed_execute(cmd)
+
+    cmd = "mathpha expr=%s units=C outfil=temp_final_spec.pha exposure=CALC areascal='%%' backscal='%%' ncomment=0" % (src_math_expr)
+    timed_execute(cmd)
+
+    #Run grppha to change the auxfile keys and to do grouping if needed
+    grppha_comm = "chkey backfile %s.bak & chkey respfile %s.rsp"%\
+                  (outroot, outroot)
+    if grouping:
+      grppha_comm += " & group min %d" % grouping
+    grppha_comm += " & exit"
+
+    cmd = "grppha infile=temp_final_spec.pha outfile=%s.pha clobber=yes comm=\"%s\""%\
+          (outroot, grppha_comm)
+    timed_execute(cmd)
+
+    shutil.copy('temp_final_spec.bak', outroot + '.bak')
+
+    for resp_file in resp_files:
+        os.remove(resp_file)
+    for spec in src_tmp_spec + back_tmp_spec:
+        os.remove(spec)
+
+    os.remove('temp_final_spec.bak')
+    os.remove('temp_final_spec.pha')
     
 
 def split_GTI(infile):
@@ -232,6 +294,7 @@ def split_GTI(infile):
     rows = float(fits['GTI'].header['NAXIS2'])
     fits.close()
 
+    outfiles = []
     for i in range(rows):
         
         tempgti_fn = "tempGTI_%d.fits" % (i+1)
@@ -244,10 +307,13 @@ def split_GTI(infile):
 
         cmd = "fappend %s[BADPIX] %s.evt" % (infile, outroot)
         timed_execute(cmd)
+        outfiles.append(outroot + '.evt')
 
         os.remove(tempgti_fn)
+
+    return outfiles
   
-def make_expomap(infile, attfile, hdfile, stemout=None, outdir="./"):
+def make_expomap(infile, attfile, hdfile, stemout=None, outdir=None):
     """
     Make an exposure map for an event file. Wraps xrtexpomap.
 
@@ -258,16 +324,24 @@ def make_expomap(infile, attfile, hdfile, stemout=None, outdir="./"):
 
       Optional Arguments:
         - stemout: Stem for the output files.
-                   Default is standard Swift naming convention.
+                   Default is same as input file.
         - outdir: Directory for the output files.
                   Default is the current working dir.
+        If both stemout and outdir are None will use same dir and stem 
+        as input file. 
     """
 
-    cmd = "xrtexpomap infile=%s attfile=%s hdfile=%s outdir=%s clobber=yes " % (infile, attfile, hdfile, outdir)
-    if stemout:
-        cmd += "stemout=%s " % stemout 
+    cmd = "xrtexpomap infile=%s attfile=%s hdfile=%s clobber=yes " % (infile, attfile, hdfile)
+
+    inf_path, inf_base = os.path.split(infile)
+    if stemout and outdir:
+        cmd += "stemout=%s outdir=%s" % (stemout, outdir)
+    elif stemout:
+        cmd += "stemout=%s outdir=./" % stemout
+    elif outdir:
+        cmd += "stemout=%s outdir=%s" % (os.path.splitext(inf_base)[0], outdir)
     else:
-        cmd += "stemout=%s " % os.path.splitext(infile)[0]
+        cmd += "stemout=%s outdir=%s" % (os.path.splitext(inf_base)[0], inf_path)
     
     timed_execute(cmd)
 

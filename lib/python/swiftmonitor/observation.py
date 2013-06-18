@@ -560,7 +560,7 @@ class Observation:
 
         split_spectra.append(split_spectrum)
 
-    ftools.add_spectra(split_spectra, self.path + outroot + '_seporb')
+    ftools.add_spectra(split_spectra, self.path + outroot + '_seporb', grouping=grouping)
 
   def fit_spectrum(self, spectrum=None):
     """
