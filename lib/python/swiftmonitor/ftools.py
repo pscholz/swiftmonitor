@@ -312,6 +312,80 @@ def split_GTI(infile):
         os.remove(tempgti_fn)
 
     return outfiles
+
+def split_orbits(infile, orbitfile):
+    """
+    Split an event file into separate event files for each orbit.
+
+      Arguments:
+        - infile: Input events file to split.
+        - orbitfile: Orbit (.sao.fits) file for observation.
+    """
+
+    fits = pyfits.open(infile)
+    gtis = fits['GTI'].data
+    fits.close()
+
+    orb_fits = pyfits.open(orbitfile)
+    orb_times = orb_fits['FRAME'].data['TIME']
+    #sunshine = orb_fits['PREFILTER'].data['SUNSHINE']
+    ccdexpos = orb_fits['FRAME'].data['CCDEXPOS']
+    orb_fits.close()
+
+    #import matplotlib.pyplot as plt    
+    #plt.plot(orb_times, ccdexpos,'k.')
+    #plt.plot(orb_times[:-1],ccdexpos[:-1] - ccdexpos[1:],'b.')
+    #plt.show()
+
+    # give 10s tolerance to either side for GTI to be part of orbit
+    orb_starts = orb_times[(ccdexpos[:-1] - ccdexpos[1:]) == -1] - 10.0
+    orb_ends = orb_times[(ccdexpos[:-1] - ccdexpos[1:]) > 0] + 10.0
+
+    if ccdexpos[0] == 1:
+        orb_starts = np.append([orb_times[0]],orb_starts)
+    if ccdexpos[-1] == 1:
+        orb_ends = np.append(orb_ends,[orb_times[-1]])
+
+    orbits = zip(orb_starts, orb_ends)
+
+    orb_inds = np.empty(len(gtis)) # which orbit the GTI belongs to
+    orb_inds.fill(len(orbits) + 1) # fill with index that will break things if not replaced
+    for i,gti in enumerate(gtis):
+        for j,orbit in enumerate(orbits):
+           if gti[0] > orbit[0] and gti[1] < orbit[1]:
+               orb_inds[i] = j
+               
+    outfiles = []
+    snapshot_num = 0
+    
+    if np.any(orb_inds == len(orbits) + 1):
+        print '\t WARNING: SOME GTIS NOT IN ORBITS!!!'
+
+    for i_orb in range(len(orbits)):
+        # make list of gtis in the orbit
+        gtifile_str = ''
+        for gti in gtis[orb_inds == i_orb]:
+            gtifile_str += str(gti[0]) + ' ' + str(gti[1]) + '\n'
+
+        if len(gtifile_str):
+
+            snapshot_num += 1
+            tempgti_fn = 'tempGTI_%d.txt' % snapshot_num
+            f = open(tempgti_fn, 'w')
+            f.write(gtifile_str)
+            f.close()
+
+            # extract each orbit and append badpix file   
+            outroot = os.path.splitext(infile)[0] + "_s" + str(snapshot_num)  
+            extract(outroot, infile=infile, events=True, gtifile=tempgti_fn)
+
+            cmd = "fappend %s[BADPIX] %s.evt" % (infile, outroot)
+            timed_execute(cmd)
+            outfiles.append(outroot + '.evt')
+
+            os.remove(tempgti_fn)
+
+    return outfiles
   
 def make_expomap(infile, attfile, hdfile, stemout=None, outdir=None):
     """

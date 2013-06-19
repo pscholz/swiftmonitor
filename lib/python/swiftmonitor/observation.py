@@ -537,15 +537,15 @@ class Observation:
         print "Using obsfile as input."
         infile = self.path + self.obsfile
 
-    split_files = ftools.split_GTI(infile)
+    #TEMP UNTIL HAVE BETTER WAY
+    attfile = glob.glob(os.path.join(self.path,'raw/auxil/sw*sat.fits.gz'))[0]
+    hdfile = glob.glob(os.path.join(self.path,'raw/xrt/hk/sw*hd.hk.gz'))[0]
+    ##
+
+    split_files = ftools.split_orbits(infile, hdfile)
 
     split_spectra = []
     for split_file in split_files:
-
-        #TEMP UNTIL HAVE BETTER WAY
-        attfile = glob.glob(os.path.join(self.path,'raw/auxil/sw*sat.fits.gz'))[0]
-        hdfile = glob.glob(os.path.join(self.path,'raw/xrt/hk/sw*hd.hk.gz'))[0]
-        ##
 
         ftools.make_expomap(split_file, attfile, hdfile)
 
