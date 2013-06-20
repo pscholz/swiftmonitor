@@ -248,11 +248,25 @@ def add_spectra(spec_list, outroot, grouping=None):
     back_math_expr = '+'.join(back_tmp_spec)
 
     weights = weights / np.sum(weights) # response files weighted by exposure time
-    weights_str = ','.join(map(str, weights))
-    resp_str = ','.join(resp_files)
 
-    cmd = "addrmf list=%s weights=%s rmffile=%s" % (resp_str,weights_str,outroot + '.rsp')
-    timed_execute(cmd)
+    # if have a high number of orbits (> 10), will break addrmf, so need to do in chunks
+    summed_resps = []
+    for i in range(0,len(resp_files),5):
+        weights_str = ','.join(map(str, weights[i:i+5]))
+        resp_str = ','.join(resp_files[i:i+5])
+        temp_summed_fn = 'temp_summed' + str(i) + '.rsp'
+
+        cmd = "addrmf list=%s weights=%s rmffile=%s" % (resp_str,weights_str,temp_summed_fn)
+        timed_execute(cmd)
+        summed_resps.append(temp_summed_fn)
+
+    if len(summed_resps) == 1:
+        shutil.copy(summed_resps[0],outroot + '.rsp')
+    else:
+        resp_str = ','.join(summed_resps)
+        weights_str = ','.join(len(summed_resps)*['1.0'])
+        cmd = "addrmf list=%s weights=%s rmffile=%s" % (resp_str,weights_str,outroot + '.rsp')
+        timed_execute(cmd)
 
     cmd = "mathpha expr=%s units=C outfil=temp_final_spec.bak exposure=CALC areascal='%%' backscal='%%' ncomment=0" % (back_math_expr)
     timed_execute(cmd)
@@ -275,6 +289,8 @@ def add_spectra(spec_list, outroot, grouping=None):
 
     for resp_file in resp_files:
         os.remove(resp_file)
+    for summed_resp in summed_resps:
+        os.remove(summed_resp)
     for spec in src_tmp_spec + back_tmp_spec:
         os.remove(spec)
 
