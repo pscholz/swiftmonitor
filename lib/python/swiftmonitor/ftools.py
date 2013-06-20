@@ -313,7 +313,7 @@ def split_GTI(infile):
 
     return outfiles
 
-def split_orbits(infile, orbitfile):
+def split_orbits(infile):
     """
     Split an event file into separate event files for each orbit.
 
@@ -324,27 +324,17 @@ def split_orbits(infile, orbitfile):
 
     fits = pyfits.open(infile)
     gtis = fits['GTI'].data
+    times = fits['EVENTS'].data['TIME']
     fits.close()
 
-    orb_fits = pyfits.open(orbitfile)
-    orb_times = orb_fits['FRAME'].data['TIME']
-    #sunshine = orb_fits['PREFILTER'].data['SUNSHINE']
-    ccdexpos = orb_fits['FRAME'].data['CCDEXPOS']
-    orb_fits.close()
+    orb_end_inds = np.where(times[1:] - times[:-1] > 1000.0)
+    orb_ends = times[orb_end_inds]
+    orb_starts = times[1:][orb_end_inds]
 
-    #import matplotlib.pyplot as plt    
-    #plt.plot(orb_times, ccdexpos,'k.')
-    #plt.plot(orb_times[:-1],ccdexpos[:-1] - ccdexpos[1:],'b.')
-    #plt.show()
+    # add start and end time to orbit starts and ends, and add a 10 tolerance
+    orb_ends = np.append(orb_ends,[times[-1]]) + 10.0
+    orb_starts = np.append([times[0]],orb_starts) - 10.0
 
-    # give 10s tolerance to either side for GTI to be part of orbit
-    orb_starts = orb_times[(ccdexpos[:-1] - ccdexpos[1:]) == -1] - 10.0
-    orb_ends = orb_times[(ccdexpos[:-1] - ccdexpos[1:]) > 0] + 10.0
-
-    if ccdexpos[0] == 1:
-        orb_starts = np.append([orb_times[0]],orb_starts)
-    if ccdexpos[-1] == 1:
-        orb_ends = np.append(orb_ends,[orb_times[-1]])
 
     orbits = zip(orb_starts, orb_ends)
 
@@ -360,6 +350,17 @@ def split_orbits(infile, orbitfile):
     
     if np.any(orb_inds == len(orbits) + 1):
         print '\t WARNING: SOME GTIS NOT IN ORBITS!!!'
+    #bad_gtis = gtis[orb_inds == len(orbits) + 1]
+    #print bad_gtis
+
+    #import matplotlib.pyplot as plt    
+    #plt.plot(times, np.ones(len(times)),'k.')
+    #plt.plot(orb_ends, np.ones(len(orb_ends)),'ro')
+    #plt.plot(orb_starts, np.ones(len(orb_starts)),'go')
+    #plt.plot(bad_gtis['START'],np.ones(len(bad_gtis)),'bs')
+    #plt.plot(bad_gtis['STOP'],np.ones(len(bad_gtis)),'bo')
+    #plt.show()
+    #exit()
 
     for i_orb in range(len(orbits)):
         # make list of gtis in the orbit

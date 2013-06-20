@@ -542,7 +542,7 @@ class Observation:
     hdfile = glob.glob(os.path.join(self.path,'raw/xrt/hk/sw*hd.hk.gz'))[0]
     ##
 
-    split_files = ftools.split_orbits(infile, hdfile)
+    split_files = ftools.split_orbits(infile)
 
     split_spectra = []
     for split_file in split_files:
