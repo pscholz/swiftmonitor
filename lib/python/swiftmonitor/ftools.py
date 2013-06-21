@@ -195,6 +195,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
 
     os.remove('temp_source.pha')
 
+
 def add_spectra(spec_list, outroot, grouping=None):
     """
     Add pha files together. Reimplements addspec ftool.
@@ -202,8 +203,8 @@ def add_spectra(spec_list, outroot, grouping=None):
 
     back_tmp_spec = []
     src_tmp_spec = []
+    tmp_arfs = []
     weights = []
-    resp_files = []
     i = 0
 
     for spec in spec_list:
@@ -214,59 +215,45 @@ def add_spectra(spec_list, outroot, grouping=None):
         exposure = fits[1].header['EXPOSURE']
         fits.close()
 
-        i += 1
-        temp_root = 'temp_spec' + str(i)
+        # only include snapshots with exposure time > 300 s
+        if exposure > 300.0:
 
-        # copy source spectra to cwd
-        tmp_spec = temp_root + '.pha' 
-        shutil.copy(spec,tmp_spec) 
-        src_tmp_spec.append(tmp_spec)
-        
-        # copy back spectra to cwd
-        tmp_spec = temp_root+ '.bak' 
-        shutil.copy(back_fn,tmp_spec) 
-        back_tmp_spec.append(tmp_spec)
+            i += 1
+            temp_root = 'temp_spec' + str(i)
 
-        # copy arf file to cwd
-        tmp_arf = temp_root + '.arf' 
-        shutil.copy(ancr_fn,tmp_arf) 
+            # copy source spectra to cwd
+            tmp_spec = temp_root + '.pha' 
+            shutil.copy(spec,tmp_spec) 
+            src_tmp_spec.append(tmp_spec)
+            
+            # copy back spectra to cwd
+            tmp_spec = temp_root+ '.bak' 
+            shutil.copy(back_fn,tmp_spec) 
+            back_tmp_spec.append(tmp_spec)
 
-        # copy response matrix to prevent corrupting original
-        tmp_rmf = temp_root + '.rmf'
-        shutil.copy(resp_fn,tmp_rmf)
+            # copy arf file to cwd
+            tmp_arf = temp_root + '.arf' 
+            shutil.copy(ancr_fn,tmp_arf) 
+            tmp_arfs.append(tmp_arf)
 
-        tmp_rsp = os.path.splitext(os.path.basename(spec))[0] + '.rsp_tmp'
-        cmd = 'marfrmf rmfil=%s arfil=%s outfil=%s' % (tmp_rmf, tmp_arf, tmp_rsp) 
-        timed_execute(cmd)
+            weights.append(exposure)
 
-        resp_files.append(tmp_rsp)
-        weights.append(exposure)
-        os.remove(tmp_rmf)
-        os.remove(tmp_arf)
 
     src_math_expr = '+'.join(src_tmp_spec)
     back_math_expr = '+'.join(back_tmp_spec)
 
     weights = weights / np.sum(weights) # response files weighted by exposure time
 
-    # if have a high number of orbits (> 10), will break addrmf, so need to do in chunks
-    summed_resps = []
-    for i in range(0,len(resp_files),5):
-        weights_str = ','.join(map(str, weights[i:i+5]))
-        resp_str = ','.join(resp_files[i:i+5])
-        temp_summed_fn = 'temp_summed' + str(i) + '.rsp'
+    f = open('tmp_arfs.list','w')
+    print tmp_arfs,weights
+    print zip(tmp_arfs,weights)
+    for tmp_arf, weight in zip(tmp_arfs,weights):
+        print tmp_arf, weight
+        f.write(tmp_arf + ' ' + str(weight) + '\n')
+    f.close()
 
-        cmd = "addrmf list=%s weights=%s rmffile=%s" % (resp_str,weights_str,temp_summed_fn)
-        timed_execute(cmd)
-        summed_resps.append(temp_summed_fn)
-
-    if len(summed_resps) == 1:
-        shutil.copy(summed_resps[0],outroot + '.rsp')
-    else:
-        resp_str = ','.join(summed_resps)
-        weights_str = ','.join(len(summed_resps)*['1.0'])
-        cmd = "addrmf list=%s weights=%s rmffile=%s" % (resp_str,weights_str,outroot + '.rsp')
-        timed_execute(cmd)
+    cmd = "addarf @tmp_arfs.list out_ARF=%s" % outroot + '.arf'
+    timed_execute(cmd)
 
     cmd = "mathpha expr=%s units=C outfil=temp_final_spec.bak exposure=CALC areascal='%%' backscal='%%' ncomment=0" % (back_math_expr)
     timed_execute(cmd)
@@ -275,8 +262,8 @@ def add_spectra(spec_list, outroot, grouping=None):
     timed_execute(cmd)
 
     #Run grppha to change the auxfile keys and to do grouping if needed
-    grppha_comm = "chkey backfile %s.bak & chkey respfile %s.rsp"%\
-                  (outroot, outroot)
+    grppha_comm = "chkey backfile %s.bak & chkey ancrfile %s.arf & chkey respfile %s"%\
+                  (outroot, outroot, resp_fn)
     if grouping:
       grppha_comm += " & group min %d" % grouping
     grppha_comm += " & exit"
@@ -287,15 +274,12 @@ def add_spectra(spec_list, outroot, grouping=None):
 
     shutil.copy('temp_final_spec.bak', outroot + '.bak')
 
-    for resp_file in resp_files:
-        os.remove(resp_file)
-    for summed_resp in summed_resps:
-        os.remove(summed_resp)
-    for spec in src_tmp_spec + back_tmp_spec:
-        os.remove(spec)
+    for temp_fn in src_tmp_spec + back_tmp_spec + tmp_arfs:
+        os.remove(temp_fn)
 
     os.remove('temp_final_spec.bak')
     os.remove('temp_final_spec.pha')
+    #os.remove('tmp_arfs.list')
     
 
 def split_GTI(infile):
