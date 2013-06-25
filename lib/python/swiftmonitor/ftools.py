@@ -245,8 +245,6 @@ def add_spectra(spec_list, outroot, grouping=None):
     weights = weights / np.sum(weights) # response files weighted by exposure time
 
     f = open('tmp_arfs.list','w')
-    print tmp_arfs,weights
-    print zip(tmp_arfs,weights)
     for tmp_arf, weight in zip(tmp_arfs,weights):
         print tmp_arf, weight
         f.write(tmp_arf + ' ' + str(weight) + '\n')
@@ -279,7 +277,7 @@ def add_spectra(spec_list, outroot, grouping=None):
 
     os.remove('temp_final_spec.bak')
     os.remove('temp_final_spec.pha')
-    #os.remove('tmp_arfs.list')
+    os.remove('tmp_arfs.list')
     
 
 def split_GTI(infile):
