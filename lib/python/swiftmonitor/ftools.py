@@ -4,18 +4,37 @@ import numpy as np
 import subprocess
 import re
 
-def timed_execute(cmd): 
+def execute_cmd(cmd, stdout=sys.stdout, stderr=sys.stderr): 
     """
     Execute the command 'cmd' after logging the command
-      to STDOUT.  Return the wall-clock amount of time
-      the command took to execute.
+      to STDOUT.  
+
+      stderr and stdout can be sys.stdout/stderr or any file 
+      object to log output to file.
+
+      stdout and stderr are returned if subprocess.PIPE is
+      provided for their input parameters. Otherwise will 
+      return None.
     """
     sys.stdout.write("\n'"+cmd+"'\n")
     sys.stdout.flush()
-    start = time.time()
-    os.system(cmd)
-    end = time.time()
-    return end - start
+
+    pipe = subprocess.Popen(cmd, shell=True, stdout=stdout, stderr=stderr)
+    (stdoutdata, stderrdata) = pipe.communicate()
+
+    retcode = pipe.returncode
+
+    if retcode < 0:
+        raise RuntimeError("Execution of command (%s) terminated by signal (%s)!" % \
+                                (cmd, -retcode))
+    elif retcode > 0:
+        raise RuntimeError("Execution of command (%s) failed with status (%s)!" % \
+                                (cmd, retcode))
+    else:
+        # Exit code is 0, which is "Success". Do nothing.
+        pass
+
+    return (stdoutdata, stderrdata)
 
 def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=None,\
             grade=None,gtifile=None,chanlow=0,chanhigh=1023):
@@ -73,7 +92,7 @@ def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=Non
 
     args += 'clobber=yes'
     cmd = 'extractor ' + args 
-    extract_time = timed_execute(cmd)
+    extract_time = execute_cmd(cmd)
 
 def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True):
     """
@@ -168,9 +187,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
     if expmap:
       cmd += " expofile=%s" % (expmap)
 
-    pipe = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
-    xrtmkarf_out = pipe.stdout.read()
-    pipe.stdout.close() 
+    xrtmkarf_out = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
     print xrtmkarf_out
 
     rmf_re = re.compile("Processing \'(?P<rmf>.*)\.rmf\' CALDB file\.")
@@ -191,7 +208,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
 
     cmd = "grppha infile=temp_source.pha outfile=%s_source.pha clobber=yes comm=\"%s\""%\
           (outroot, grppha_comm)
-    timed_execute(cmd)
+    execute_cmd(cmd)
 
     os.remove('temp_source.pha')
 
@@ -205,6 +222,9 @@ def add_spectra(spec_list, outroot, grouping=None):
     src_tmp_spec = []
     tmp_arfs = []
     weights = []
+
+    tstarts = []
+    tstops = []
     i = 0
 
     for spec in spec_list:
@@ -213,6 +233,8 @@ def add_spectra(spec_list, outroot, grouping=None):
         ancr_fn = fits[1].header['ANCRFILE']
         resp_fn = fits[1].header['RESPFILE']
         exposure = fits[1].header['EXPOSURE']
+        tstarts.append(fits[1].header['TSTART'])
+        tstops.append(fits[1].header['TSTOP'])
         fits.close()
 
         # only include snapshots with exposure time > 300 s
@@ -251,13 +273,13 @@ def add_spectra(spec_list, outroot, grouping=None):
     f.close()
 
     cmd = "addarf @tmp_arfs.list out_ARF=%s" % outroot + '.arf'
-    timed_execute(cmd)
+    execute_cmd(cmd)
 
     cmd = "mathpha expr=%s units=C outfil=temp_final_spec.bak exposure=CALC areascal='%%' backscal='%%' ncomment=0" % (back_math_expr)
-    timed_execute(cmd)
+    execute_cmd(cmd)
 
     cmd = "mathpha expr=%s units=C outfil=temp_final_spec.pha exposure=CALC areascal='%%' backscal='%%' ncomment=0" % (src_math_expr)
-    timed_execute(cmd)
+    execute_cmd(cmd)
 
     #Run grppha to change the auxfile keys and to do grouping if needed
     grppha_comm = "chkey backfile %s.bak & chkey ancrfile %s.arf & chkey respfile %s"%\
@@ -268,9 +290,15 @@ def add_spectra(spec_list, outroot, grouping=None):
 
     cmd = "grppha infile=temp_final_spec.pha outfile=%s.pha clobber=yes comm=\"%s\""%\
           (outroot, grppha_comm)
-    timed_execute(cmd)
+    execute_cmd(cmd)
 
     shutil.copy('temp_final_spec.bak', outroot + '.bak')
+
+    # put TSTART and TSTOP keywords into final spectrum
+    out_spec_fits = pyfits.open(outroot + '.pha', mode='update')
+    out_spec_fits[0].header['TSTART'] = (np.min(tstarts), 'time start')
+    out_spec_fits[0].header['TSTOP'] = (np.max(tstops), 'time stop')
+    out_spec_fits.close()
 
     for temp_fn in src_tmp_spec + back_tmp_spec + tmp_arfs:
         os.remove(temp_fn)
@@ -297,14 +325,14 @@ def split_GTI(infile):
         
         tempgti_fn = "tempGTI_%d.fits" % (i+1)
         cmd = "fcopy %s[GTI][#row==%d] %s" % (infile, i+1, tempgti_fn)
-        timed_execute(cmd)
+        execute_cmd(cmd)
 
         outroot = os.path.splitext(infile)[0] + "_s" + str(i+1)  
      
         extract(outroot, infile=infile, events=True, gtifile=tempgti_fn)
 
         cmd = "fappend %s[BADPIX] %s.evt" % (infile, outroot)
-        timed_execute(cmd)
+        execute_cmd(cmd)
         outfiles.append(outroot + '.evt')
 
         os.remove(tempgti_fn)
@@ -379,7 +407,7 @@ def split_orbits(infile):
             extract(outroot, infile=infile, events=True, gtifile=tempgti_fn)
 
             cmd = "fappend %s[BADPIX] %s.evt" % (infile, outroot)
-            timed_execute(cmd)
+            execute_cmd(cmd)
             outfiles.append(outroot + '.evt')
 
             os.remove(tempgti_fn)
@@ -416,7 +444,7 @@ def make_expomap(infile, attfile, hdfile, stemout=None, outdir=None):
     else:
         cmd += "stemout=%s outdir=%s" % (os.path.splitext(inf_base)[0], inf_path)
     
-    timed_execute(cmd)
+    execute_cmd(cmd)
 
 class region:
     """
@@ -518,3 +546,10 @@ def correct_backscal(source_file, back_file, source_reg_fn, back_reg_fn):
     hdus = pyfits.open(back_file, mode='update')
     hdus[1].header['BACKSCAL'] = back_backscal
     hdus.close()
+
+def quzcif(codename, date, time, mission='SWIFT', instrument='XRT', detector='-', filter='-', expr='-'):
+    """
+    Wrapper for quzcif ftool. Queries the CALDB for calibration datasets that match a criteria defined
+      by the input parameters.
+    """
+    pass
