@@ -552,7 +552,7 @@ class Observation:
         split_root = os.path.splitext(split_file)[0]
         expomap = split_root + '_ex.img'
 
-        ftools.extract_spectrum(split_root, split_file, expmap=expomap, grade=grade, grouping=grouping,\
+        ftools.extract_spectrum(split_root, split_file, expmap=expomap, grade=grade, grouping=None,\
                                 chan_low=chan_low,chan_high=chan_high,energy_low=energy_low,energy_high=energy_high,\
                                 source_region=self.path + self.src_region, back_region=self.path + self.back_region)
             
