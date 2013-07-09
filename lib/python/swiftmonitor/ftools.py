@@ -135,6 +135,50 @@ def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True):
  
     return x,y
 
+def skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, time, debug=False):
+    """
+    Runs and captures the output from pointxform to work out the
+      detector and sky pixel coord for the given RA, Dec
+
+      Returns a tuple of (detx, dety, skyx, skyy)
+    """
+
+    cmd = 'pointxform fromworld=yes from=\'SKY\' to=\'DET\''
+    cmd += ' x=' + str(ra)
+    cmd += ' y=' + str(dec)
+    cmd += ' teldeffile=' + teldeffile
+    cmd += ' alignfile=' + alignfile
+    cmd += ' attfile= ' + attfile
+    cmd += ' time=' + str(time)
+
+    if debug:
+        print cmd
+
+    output = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
+
+    if debug:
+        print output
+
+    det_result = re.compile("DET.*\[", re.M).search(output)
+    sky_result = re.compile("SKY.*\[", re.M).search(output)
+
+    if det_result and sky_result:
+
+        det_str = (det_result.group())[3:-1].split(',')
+        sky_str = (sky_result.group())[3:-1].split(',')
+
+        if debug :
+            print det_str, sky_str
+
+        detx, dety = float(det_str[0]), float(det_str[1])
+        skyx, skyy = float(sky_str[0]), float(sky_str[1])
+
+        return (detx, dety, skyx, skyy)
+
+    else:
+        return (None, None, None, None)
+
+
 def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None,energy_high=None,\
                      grouping=20,grade=None,expmap=None,source_region=None,back_region=None):
     """
