@@ -291,7 +291,7 @@ class Observation:
  
     event_files = glob.glob(out_dir + "/sw" + self.obsid + "x" + self.mode + "*" + "po_cl.evt")
     orbit_files = glob.glob(raw_dir + "/auxil/sw" + self.obsid + "sao.fits*")
-    expmap_files = glob.glob(out_dir + "/sw" + self.obsid + "x" + self.mode + "*" + "_ex.img")
+    expmap_files = glob.glob(out_dir + "/sw" + self.obsid + "x" + self.mode + "*" + "po_ex.img")
     
     if not event_files or len(event_files) > 1:
       print "No or more than one cleaned event file output in %s" % out_dir
@@ -594,13 +594,16 @@ class Observation:
     for split_file in split_files:
 
         ftools.make_expomap(split_file, self.attfile, self.hdfile)
+        offaxis_angle = ftools.calc_offaxis_angle(self.ra, self.dec, split_file, self.teldeffile, \
+                                                  self.alignfile, self.attfile)
 
         split_root = os.path.splitext(split_file)[0]
         expomap = split_root + '_ex.img'
 
         ftools.extract_spectrum(split_root, split_file, expmap=expomap, grade=grade, grouping=None,\
                                 chan_low=chan_low,chan_high=chan_high,energy_low=energy_low,energy_high=energy_high,\
-                                source_region=self.path + self.src_region, back_region=self.path + self.back_region)
+                                source_region=self.path + self.src_region, back_region=self.path + self.back_region,\
+                                offaxis_angle=offaxis_angle)
             
         split_spectrum = '%s_g%s_source.pha' % (split_root,grade) if grade else '%s_source.pha' % split_root
 

@@ -202,7 +202,8 @@ def calc_offaxis_angle(ra, dec, evtfile, teldeffile, alignfile, attfile):
 
 
 def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None,energy_high=None,\
-                     grouping=20,grade=None,expmap=None,source_region=None,back_region=None):
+                     grouping=20,grade=None,expmap=None,source_region=None,back_region=None, \
+                     offaxis_angle=None):
     """
     Extract a spectrum.
       If both the PHA channel limits and energy limits are None will extract entire band.
@@ -226,6 +227,9 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
                     Default=None
         - back_region: region file to use to extract background spectrum.
                     Default=None
+        - offaxis_angle: offaxis angle (in arcmin) of source to feed to xrtmkarf for 
+                    the vignetting correction.
+                    Default is to let xrtmkarf do its own calculation.
 
     """
     print "Extracting spectrum...\n"
@@ -238,8 +242,10 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
         chan_low = int( energy_low * 100.0 )
         chan_high = int( energy_high * 100.0 )
 
-    # FIX THIS 
-    x, y = find_centroid(infile)
+    if offaxis_angle:
+        x, y = '-1', '-1'
+    else:
+        x, y = find_centroid(infile)
 
     if grade:
       outroot += '_g%s' % grade
@@ -253,6 +259,8 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
           (outroot, x, y) 
     if expmap:
       cmd += " expofile=%s" % (expmap)
+    if offaxis_angle:
+      cmd += " offaxis=%f" % (offaxis_angle)
 
     xrtmkarf_out = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
     print xrtmkarf_out
