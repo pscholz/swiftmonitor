@@ -44,6 +44,8 @@ class Observation:
     #auxillary files set by injest_auxil
     self.attfile = None
     self.hdfile = None
+    self.teldeffile = None
+    self.alignfile = None
   
     if self.pulsar:
       self.ra, self.dec = self._get_pulsar_position()
@@ -232,12 +234,14 @@ class Observation:
     self.obsfile = obsfile
     self.obsroot = obsfile.split('.')[0]
 
-  def injest_auxil(self, auxil_dir=None):
+  def injest_auxil(self):
     """
     Finds auxil files and stores locations as Observation attributes.
 
       Currently injests: - attitude file (attfile)
                          - hd housekeeping file (hdfile)
+                         - teldef file, from CALDB (teldeffile)
+                         - alignment file, from CALDB (alignfile)
 
     Dev: can add auxil files here as needed. Also do some caldb through quzcif?
     """
@@ -261,12 +265,20 @@ class Observation:
     else:
        print "HD file not found in auxil files."
 
+    fits = pyfits.open(self.obsfile)
+    date_obs = fits[0].header['DATE-OBS']
+
+    date_obs_split = date_obs.strip().strip('\'').split("T")
+
+    self.alignfile = ftools.quzcif('ALIGNMENT','NOW','-', instrument='SC')[0][0]
+    self.teldeffile = ftools.quzcif('TELDEF',date_obs_split[0],date_obs_split[1])[0][0]
     
 
   def preprocess(self, raw_dir, out_dir, xrtpipeline_args=""):
     """
     Preprocess the raw unfiltered data using xrtpipeline.
     """
+    self.injest_auxil()
     cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s createexpomap=yes %s' %\
           (raw_dir, out_dir, self.obsid, xrtpipeline_args)
     if self.ra and self.dec:
