@@ -550,6 +550,29 @@ def correct_backscal(source_file, back_file, source_reg_fn, back_reg_fn):
 def quzcif(codename, date, time, mission='SWIFT', instrument='XRT', detector='-', filter='-', expr='-'):
     """
     Wrapper for quzcif ftool. Queries the CALDB for calibration datasets that match a criteria defined
-      by the input parameters.
+      by the input parameters. Returns a list of files (outlist) and a list of extentsion numbers
+      in those files (extlist).
     """
-    pass
+    cmd = "quzcif "
+    cmd += " mission=" + mission
+    cmd += " instrument=" + instrument
+    cmd += " detector=" + detector
+    cmd += " filter=" + filter
+    cmd += " expr=" + expr
+    cmd += " codename=" + codename
+    cmd += " date=" + date
+    cmd += " time=" + time
+
+    quzcif_out = execute_cmd(cmd, stdout=subprocess.PIPE)[0]
+
+    outlist = []
+    extlist = []
+    for line in quzcif_out.split("\n"):
+        if len(line):
+            sline = line.split()
+            outlist.append(sline[0])
+            extlist.append(sline[1])
+    
+    return (outlist, extlist)
+
+
