@@ -467,7 +467,36 @@ def split_orbits(infile):
             os.remove(tempgti_fn)
 
     return outfiles
-  
+
+def locate_bad_columns(ra, dec, evtfile, teldeffile, alignfile, attfile):
+    """
+    Determines location of source in detector coords and compares to location
+      of known bad columns. Does this for each orbit, since location of source
+      changes on CCD from orbit to orbit.
+
+      Arguments:
+        - ra, dec: RA and Dec in decimal degrees for the source.
+        - attfile: Name of the input Attitude FITS file.
+        - hdfile: Name of the input Housekeeping Header Packets FITS file.
+ 
+      Returns list of orbits with distances from bad columns. 
+    """
+
+    # bad_cols in [startx, stopx]
+    bad_cols = [[289.5,295.5], [318.5,321.5]]
+    orbits = define_orbits(evtfile)[0]
+    distances = []
+
+    for orbit in orbits:
+        tmid = (orbit[0] + orbit[1]) / 2.0
+        detx, dety, skyx, skyy = skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, tmid)
+
+        del_x = np.min( np.abs( detx - np.array(bad_cols).flatten() ) )
+        distances.append(del_x)
+
+    return (orbits, distances)
+    
+ 
 def make_expomap(infile, attfile, hdfile, stemout=None, outdir=None):
     """
     Make an exposure map for an event file. Wraps xrtexpomap.
