@@ -372,37 +372,6 @@ def add_spectra(spec_list, outroot, grouping=None):
     os.remove('tmp_arfs.list')
     
 
-def split_GTI(infile):
-    """
-    Split an event file into separate event files for each GTI.
-
-      Arguments:
-        - infile: Input events file to split.
-    """
-
-    fits = pyfits.open(infile)
-    rows = float(fits['GTI'].header['NAXIS2'])
-    fits.close()
-
-    outfiles = []
-    for i in range(rows):
-        
-        tempgti_fn = "tempGTI_%d.fits" % (i+1)
-        cmd = "fcopy %s[GTI][#row==%d] %s" % (infile, i+1, tempgti_fn)
-        execute_cmd(cmd)
-
-        outroot = os.path.splitext(infile)[0] + "_s" + str(i+1)  
-     
-        extract(outroot, infile=infile, events=True, gtifile=tempgti_fn)
-
-        cmd = "fappend %s[BADPIX] %s.evt" % (infile, outroot)
-        execute_cmd(cmd)
-        outfiles.append(outroot + '.evt')
-
-        os.remove(tempgti_fn)
-
-    return outfiles
-
 def define_orbits(event_file, sep_time=1000.0):
     """
     Define the start and end times of orbits for a given event file.
