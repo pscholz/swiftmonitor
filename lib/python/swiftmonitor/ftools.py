@@ -135,7 +135,7 @@ def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True):
  
     return x,y
 
-def skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, time, debug=False):
+def skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, time):
     """
     Runs and captures the output from pointxform to work out the
       detector and sky pixel coord for the given RA, Dec
@@ -151,13 +151,7 @@ def skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, time, debug=False):
     cmd += ' attfile= ' + attfile
     cmd += ' time=' + str(time)
 
-    if debug:
-        print cmd
-
     output = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
-
-    if debug:
-        print output
 
     det_result = re.compile("DET.*\[", re.M).search(output)
     sky_result = re.compile("SKY.*\[", re.M).search(output)
@@ -167,9 +161,6 @@ def skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, time, debug=False):
         det_str = (det_result.group())[3:-1].split(',')
         sky_str = (sky_result.group())[3:-1].split(',')
 
-        if debug :
-            print det_str, sky_str
-
         detx, dety = float(det_str[0]), float(det_str[1])
         skyx, skyy = float(sky_str[0]), float(sky_str[1])
 
@@ -177,6 +168,37 @@ def skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, time, debug=False):
 
     else:
         return (None, None, None, None)
+
+def calc_offaxis_angle(ra, dec, evtfile, teldeffile, alignfile, attfile):
+    """
+    Calculate offaxis angle of source.
+    """
+    orbits, gtis, orb_inds = define_orbits(evtfile)
+
+    offaxisang_wsum = 0
+    ontime_sum = 0
+    for i,orbit in enumerate(orbits):
+        tmid = (orbit[0] + orbit[1]) / 2.0
+        detx, dety, skyx, skyy = skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, tmid)
+
+        # Work out offaxis angle
+        # assume optical axis is at (300.5, 300.5)
+        dx = detx - 300.5
+        dy = dety - 300.5
+
+        dr = (dx * dx + dy * dy)**0.5
+        # offaxis angle in arcmin
+        offaxisang = dr * 2.3573 / 60.
+
+        ontime = 0
+        for gti in gtis[ orb_inds == i ]:
+            ontime += gti[1] - gti[0]
+
+        offaxisang_wsum += offaxisang * ontime
+        ontime_sum += ontime
+
+    return offaxisang_wsum / ontime_sum
+        
 
 
 def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None,energy_high=None,\
@@ -381,6 +403,51 @@ def split_GTI(infile):
 
     return outfiles
 
+def define_orbits(event_file, sep_time=1000.0):
+    """
+    Define the start and end times of orbits for a given event file.
+      An orbit is defined a set of GTIs separated by more than sep_time seconds. 
+
+      Returns a list of orbits [(orb_start1,orb_stop1),(orb_start2,orb_stop2),...],
+      a list of gtis, and a list of index of orbit in orbit list for each gti.
+    """
+    fits = pyfits.open(event_file)
+    gtis = fits['GTI'].data
+    fits.close()
+
+    gtistart = gtis.field('START')
+    gtistop  = gtis.field('STOP')
+
+    orb_end_inds = np.where(gtistart[1:] - gtistop[:-1] > sep_time)
+    orb_ends = gtistop[orb_end_inds]
+    orb_starts = gtistart[1:][orb_end_inds]
+
+    # add start and end time to orbit starts and ends
+    orb_ends = np.append(orb_ends,[gtistop[-1]])
+    orb_starts = np.append([gtistart[0]],orb_starts)
+
+    orbits = zip(orb_starts, orb_ends)
+
+    orb_inds = np.empty(len(gtis)) # which orbit the GTI belongs to
+    orb_inds.fill(len(orbits) + 1) # fill with index that will break things if not replaced
+    for i,gti in enumerate(gtis):
+        for j,orbit in enumerate(orbits):
+           if gti[0] >= orbit[0] and gti[1] <= orbit[1]:
+               orb_inds[i] = j
+
+    #import matplotlib.pyplot as plt    
+    #times = fits['EVENTS'].data['TIME']
+    #plt.plot(times, np.ones(len(times)),'k.')
+    #plt.plot(orb_ends, np.ones(len(orb_ends)),'ro')
+    #plt.plot(orb_starts, np.ones(len(orb_starts)),'go')
+    #plt.plot(gtis['START'],np.ones(len(gtis)),'kx')
+    #plt.plot(gtis['STOP'],np.ones(len(gtis)),'kx')
+    #plt.show()
+    #exit()
+
+    fits.close()
+    return (orbits, gtis, orb_inds)
+
 def split_orbits(infile):
     """
     Split an event file into separate event files for each orbit.
@@ -390,45 +457,13 @@ def split_orbits(infile):
         - orbitfile: Orbit (.sao.fits) file for observation.
     """
 
-    fits = pyfits.open(infile)
-    gtis = fits['GTI'].data
-    times = fits['EVENTS'].data['TIME']
-    fits.close()
-
-    orb_end_inds = np.where(times[1:] - times[:-1] > 1000.0)
-    orb_ends = times[orb_end_inds]
-    orb_starts = times[1:][orb_end_inds]
-
-    # add start and end time to orbit starts and ends, and add a 10 tolerance
-    orb_ends = np.append(orb_ends,[times[-1]]) + 10.0
-    orb_starts = np.append([times[0]],orb_starts) - 10.0
-
-
-    orbits = zip(orb_starts, orb_ends)
-
-    orb_inds = np.empty(len(gtis)) # which orbit the GTI belongs to
-    orb_inds.fill(len(orbits) + 1) # fill with index that will break things if not replaced
-    for i,gti in enumerate(gtis):
-        for j,orbit in enumerate(orbits):
-           if gti[0] > orbit[0] and gti[1] < orbit[1]:
-               orb_inds[i] = j
+    orbits, gtis, orb_inds = define_orbits(infile)
                
     outfiles = []
     snapshot_num = 0
     
     if np.any(orb_inds == len(orbits) + 1):
         print '\t WARNING: SOME GTIS NOT IN ORBITS!!!'
-    #bad_gtis = gtis[orb_inds == len(orbits) + 1]
-    #print bad_gtis
-
-    #import matplotlib.pyplot as plt    
-    #plt.plot(times, np.ones(len(times)),'k.')
-    #plt.plot(orb_ends, np.ones(len(orb_ends)),'ro')
-    #plt.plot(orb_starts, np.ones(len(orb_starts)),'go')
-    #plt.plot(bad_gtis['START'],np.ones(len(bad_gtis)),'bs')
-    #plt.plot(bad_gtis['STOP'],np.ones(len(bad_gtis)),'bo')
-    #plt.show()
-    #exit()
 
     for i_orb in range(len(orbits)):
         # make list of gtis in the orbit
