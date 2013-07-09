@@ -282,28 +282,25 @@ def add_spectra(spec_list, outroot, grouping=None):
         tstops.append(fits[1].header['TSTOP'])
         fits.close()
 
-        # only include snapshots with exposure time > 300 s
-        if exposure > 300.0:
+        i += 1
+        temp_root = 'temp_spec' + str(i)
 
-            i += 1
-            temp_root = 'temp_spec' + str(i)
+        # copy source spectra to cwd
+        tmp_spec = temp_root + '.pha' 
+        shutil.copy(spec,tmp_spec) 
+        src_tmp_spec.append(tmp_spec)
+        
+        # copy back spectra to cwd
+        tmp_spec = temp_root+ '.bak' 
+        shutil.copy(back_fn,tmp_spec) 
+        back_tmp_spec.append(tmp_spec)
 
-            # copy source spectra to cwd
-            tmp_spec = temp_root + '.pha' 
-            shutil.copy(spec,tmp_spec) 
-            src_tmp_spec.append(tmp_spec)
-            
-            # copy back spectra to cwd
-            tmp_spec = temp_root+ '.bak' 
-            shutil.copy(back_fn,tmp_spec) 
-            back_tmp_spec.append(tmp_spec)
+        # copy arf file to cwd
+        tmp_arf = temp_root + '.arf' 
+        shutil.copy(ancr_fn,tmp_arf) 
+        tmp_arfs.append(tmp_arf)
 
-            # copy arf file to cwd
-            tmp_arf = temp_root + '.arf' 
-            shutil.copy(ancr_fn,tmp_arf) 
-            tmp_arfs.append(tmp_arf)
-
-            weights.append(exposure)
+        weights.append(exposure)
 
 
     src_math_expr = '+'.join(src_tmp_spec)
