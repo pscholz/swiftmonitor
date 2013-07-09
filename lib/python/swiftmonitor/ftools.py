@@ -3,6 +3,7 @@ import pyfits
 import numpy as np
 import subprocess
 import re
+from swiftmonitor import utils
 
 def execute_cmd(cmd, stdout=sys.stdout, stderr=sys.stderr): 
     """
@@ -25,10 +26,10 @@ def execute_cmd(cmd, stdout=sys.stdout, stderr=sys.stderr):
     retcode = pipe.returncode
 
     if retcode < 0:
-        raise RuntimeError("Execution of command (%s) terminated by signal (%s)!" % \
+        raise utils.SwiftMonError("Execution of command (%s) terminated by signal (%s)!" % \
                                 (cmd, -retcode))
     elif retcode > 0:
-        raise RuntimeError("Execution of command (%s) failed with status (%s)!" % \
+        raise utils.SwiftMonError("Execution of command (%s) failed with status (%s)!" % \
                                 (cmd, retcode))
     else:
         # Exit code is 0, which is "Success". Do nothing.
