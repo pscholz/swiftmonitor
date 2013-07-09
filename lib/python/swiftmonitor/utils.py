@@ -91,3 +91,9 @@ def randomvariate_old(pdf,n=1000,xmin=0,xmax=1):
   ran=np.asarray(ran)  
     
   return ran,ntrial  
+
+class SwiftMonError(Exception):
+    """
+    A generic exception to be thrown by the swiftmonitor software.
+    """
+    pass

@@ -3,7 +3,7 @@ import numpy as np
 import subprocess, re, pickle
 import pyfits
 import swiftmonitor.config
-from swiftmonitor import ftools
+from swiftmonitor import ftools, utils
 
 class TableDownError(Exception):
   def __str__(self):
@@ -40,6 +40,10 @@ class Observation:
     self.spec_fit = None
     self.ra, self.dec = None, None
     self.expmap=None
+
+    #auxillary files set by injest_auxil
+    self.attfile = None
+    self.hdfile = None
   
     if self.pulsar:
       self.ra, self.dec = self._get_pulsar_position()
@@ -228,17 +232,49 @@ class Observation:
     self.obsfile = obsfile
     self.obsroot = obsfile.split('.')[0]
 
+  def injest_auxil(self, auxil_dir=None):
+    """
+    Finds auxil files and stores locations as Observation attributes.
+
+      Currently injests: - attitude file (attfile)
+                         - hd housekeeping file (hdfile)
+
+    Dev: can add auxil files here as needed. Also do some caldb through quzcif?
+    """
+
+    # find best attitude file available (uat > pat > sat)
+    attexts = ["uat.fits.gz", "pat.fits.gz", "sat.fits.gz"]
+
+    for attext in attexts:
+        attfile = glob.glob(os.path.join(self.path,'raw/auxil/sw*' + attext))
+        if len(attfile):
+            self.attfile = attfile[0]
+            break
+    
+    if not self.attfile:
+       print "No attitude file not found in auxil files."
+
+    hdfile = glob.glob(os.path.join(self.path,'raw/xrt/hk/sw*hd.hk.gz'))
+
+    if len(hdfile):
+        self.hdfile=hdfile[0]
+    else:
+       print "HD file not found in auxil files."
+
+    
+
   def preprocess(self, raw_dir, out_dir, xrtpipeline_args=""):
     """
     Preprocess the raw unfiltered data using xrtpipeline.
     """
+    cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s createexpomap=yes %s' %\
+          (raw_dir, out_dir, self.obsid, xrtpipeline_args)
     if self.ra and self.dec:
-        cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s createexpomap=yes srcra=%s srcdec=%s %s' %\
-              (raw_dir, out_dir, self.obsid, self.ra, self.dec, xrtpipeline_args)
-    else:
-        cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s createexpomap=yes %s' %\
-              (raw_dir, out_dir, self.obsid, xrtpipeline_args)
-    cmd += " > %s/xrtpipeline.log" % self.path
+        cmd += ' srcra=%s srcdec=%s' % (self.ra, self.dec)
+    if self.attfile:
+        cmd += ' attfile=%s' % self.attfile
+
+    cmd += " %s > %s/xrtpipeline.log" % (xrtpipeline_args, self.path)
     timed_execute(cmd)
  
     event_files = glob.glob(out_dir + "/sw" + self.obsid + "x" + self.mode + "*" + "po_cl.evt")
@@ -537,17 +573,15 @@ class Observation:
         print "Using obsfile as input."
         infile = self.path + self.obsfile
 
-    #TEMP UNTIL HAVE BETTER WAY
-    attfile = glob.glob(os.path.join(self.path,'raw/auxil/sw*sat.fits.gz'))[0]
-    hdfile = glob.glob(os.path.join(self.path,'raw/xrt/hk/sw*hd.hk.gz'))[0]
-    ##
-
+    if not self.attfile or not self.hdfile:
+        raise utils.SwiftMonError("No attitude file or no HD file found: attfile=%s, hdfile=%s" % (self.attfile, self.hdfile))
+        
     split_files = ftools.split_orbits(infile)
 
     split_spectra = []
     for split_file in split_files:
 
-        ftools.make_expomap(split_file, attfile, hdfile)
+        ftools.make_expomap(split_file, self.attfile, self.hdfile)
 
         split_root = os.path.splitext(split_file)[0]
         expomap = split_root + '_ex.img'
