@@ -265,7 +265,7 @@ class Observation:
     else:
        print "HD file not found in auxil files."
 
-    fits = pyfits.open(self.obsfile)
+    fits = pyfits.open(self.path + self.obsfile)
     date_obs = fits[0].header['DATE-OBS']
 
     date_obs_split = date_obs.strip().strip('\'').split("T")
@@ -575,7 +575,8 @@ class Observation:
     self.spectrum = "%s_source.pha.grp" % (outroot)
     self.bg_spectrum = "%s_back.pha" % (outroot)
 
-  def extract_spectrum_seporb(self,infile=None,chan_low=None,chan_high=None,energy_low=None,energy_high=None,grouping=20,grade=None):
+  def extract_spectrum_seporb(self,infile=None,chan_low=None,chan_high=None,energy_low=None,energy_high=None,grouping=20,\
+                              grade=None, badcol_tol=0.0):
     outroot = self.obsroot 
 
     if grade:
@@ -592,22 +593,31 @@ class Observation:
 
     split_spectra = []
     for split_file in split_files:
+        badcol_dist = ftools.locate_bad_columns(self.ra, self.dec, split_file, self.teldeffile, \
+                                                self.alignfile, self.attfile)[1][0]
 
-        ftools.make_expomap(split_file, self.attfile, self.hdfile)
-        offaxis_angle = ftools.calc_offaxis_angle(self.ra, self.dec, split_file, self.teldeffile, \
-                                                  self.alignfile, self.attfile)
+        if badcol_dist < badcol_tol:
+            print "\nWARNING: Ignoring orbit %s because %.2f pixels away from bad columns.\n" \
+                  "\t Bad column tolerance is set to %.2f pixels.\n" % \
+                   (os.path.basename(split_file), badcol_dist, badcol_tol) 
 
-        split_root = os.path.splitext(split_file)[0]
-        expomap = split_root + '_ex.img'
+        else:
 
-        ftools.extract_spectrum(split_root, split_file, expmap=expomap, grade=grade, grouping=None,\
-                                chan_low=chan_low,chan_high=chan_high,energy_low=energy_low,energy_high=energy_high,\
-                                source_region=self.path + self.src_region, back_region=self.path + self.back_region,\
-                                offaxis_angle=offaxis_angle)
-            
-        split_spectrum = '%s_g%s_source.pha' % (split_root,grade) if grade else '%s_source.pha' % split_root
+            ftools.make_expomap(split_file, self.attfile, self.hdfile)
+            offaxis_angle = ftools.calc_offaxis_angle(self.ra, self.dec, split_file, self.teldeffile, \
+                                                      self.alignfile, self.attfile)
 
-        split_spectra.append(split_spectrum)
+            split_root = os.path.splitext(split_file)[0]
+            expomap = split_root + '_ex.img'
+
+            ftools.extract_spectrum(split_root, split_file, expmap=expomap, grade=grade, grouping=None,\
+                                    chan_low=chan_low,chan_high=chan_high,energy_low=energy_low,energy_high=energy_high,\
+                                    source_region=self.path + self.src_region, back_region=self.path + self.back_region,\
+                                    offaxis_angle=offaxis_angle)
+                
+            split_spectrum = '%s_g%s_source.pha' % (split_root,grade) if grade else '%s_source.pha' % split_root
+
+            split_spectra.append(split_spectrum)
 
     ftools.add_spectra(split_spectra, self.path + outroot + '_seporb', grouping=grouping)
 

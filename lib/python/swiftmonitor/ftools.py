@@ -476,10 +476,12 @@ def locate_bad_columns(ra, dec, evtfile, teldeffile, alignfile, attfile):
 
       Arguments:
         - ra, dec: RA and Dec in decimal degrees for the source.
-        - attfile: Name of the input Attitude FITS file.
-        - hdfile: Name of the input Housekeeping Header Packets FITS file.
+        - evtfile: Name of the input event file.
+        - teldeffile: Name of the teldef file for the observation.
+        - alignfile: Name of the alignment file for the observation.
+        - attfile: Name of the spacecraft attitude file for the observation.
  
-      Returns list of orbits with distances from bad columns. 
+      Returns list of orbits and a list of distances to nearest bad column for each orbit. 
     """
 
     # bad_cols in [startx, stopx]
