@@ -265,7 +265,9 @@ class Observation:
     else:
        print "HD file not found in auxil files."
 
-    fits = pyfits.open(self.path + self.obsfile)
+    event_file = glob.glob(os.path.join(self.path,'raw/xrt/event/sw' + self.obsid + \
+                                        'x' + self.mode + '??po_cl.evt.gz'))[0]
+    fits = pyfits.open(event_file)
     date_obs = fits[0].header['DATE-OBS']
 
     date_obs_split = date_obs.strip().strip('\'').split("T")
