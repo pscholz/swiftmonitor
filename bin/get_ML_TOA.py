@@ -47,8 +47,16 @@ parser.add_option("--sim",
 		  dest="sim", action='store_true',
 		  help="Determine the error in the TOA using simulations.",
 		  default=False)
+parser.add_option("--gauss-err",
+		  dest="gauss_err", action='store_true',
+		  help="Determine the error by fitting a gaussian.",
+		  default=False)
+parser.add_option("--plot-dist",
+		  dest="plot_dist", action='store_true',
+		  help="Plot the offset probability distribution for debugging.",
+		  default=False)
 parser.add_option("--bg-counts",
-		  dest="bg_counts", type='int',
+		  dest="bg_counts", type='float',
 		  help="Number of counts in background.",
 		  default=0)
 parser.add_option("--Emin",
@@ -70,8 +78,9 @@ if options.periodogram:
   flist = np.loadtxt(options.periodogram,usecols=[0],dtype='S')
   epoch, frequency = np.loadtxt(options.periodogram,usecols=[1,2],dtype='float',unpack=True)
   for i,fitsfile in enumerate(flist):
-    ml_toa.get_ml_toa(fitsfile, prof_mod, None, chandra=options.chandra, xmm=options.xmm, 
-                      print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i])
+    ml_toa.get_ml_toa(fitsfile, prof_mod, None, chandra=options.chandra, xmm=options.xmm, bg_counts=options.bg_counts, \
+                      print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i], sim=options.sim, \
+                      Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, debug=option.plot_dist)
 
 else:
   if options.list:
@@ -82,5 +91,5 @@ else:
   for fitsfile in flist:
     ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, \
                       print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
-                      Emin=options.emin, Emax=options.emax)
+                      Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, debug=options.plot_dist)
 
