@@ -83,7 +83,7 @@ class Sine_Model(Profile_Model):
     y = profile[:,1]
     err = np.sqrt(y)
 
-    N = np.sum(y)
+    N = np.mean(y)
     pfrac = ( np.max(y) - np.min(y) ) / N
 
     p0 = [ N * pfrac, 0.5, N * (1 - pfrac) ]
