@@ -1,5 +1,5 @@
 import numpy as np
-from scipy import optimize, integrate
+from scipy import optimize, integrate, stats
 import matplotlib.pyplot as plt
 import pyfits
 import sys
@@ -90,7 +90,36 @@ class PSRpar:
     def __repr__(self):
         return repr((self.f0, self.fdots, self.epoch))    
 
-def getErrMid50(offsets, Prob, del_off):
+def get_error(offsets, prob, del_off, debug=False):
+    """
+    Integrates from either side of the most probable offset to 34.1% 
+        of area under distribution. Takes half of the distance between
+        those two points as the sigma of the distribution.
+    """
+    maxoff = offsets[np.argmax(prob)]
+    prob_centered = np.roll(prob, len(offsets)/2 - np.argmax(prob))
+
+    cum_prob = np.cumsum(prob_centered)*del_off
+    area_to_center = cum_prob[len(offsets)/2]
+
+    lower_area = area_to_center - 0.341
+    upper_area = area_to_center + 0.341
+
+    a = np.argmin(np.abs(cum_prob - lower_area))
+    b = np.argmin(np.abs(cum_prob - upper_area))
+
+    sigma = (b - a) / 2.0 * del_off
+
+    if debug:
+        plt.errorbar(offsets[np.argmax(prob_centered)],0.5*max(prob_centered), xerr=sigma,fmt='o')
+        plt.plot(offsets, prob_centered)
+        plt.axvline(0.5,ls='dotted')
+        plt.show()
+
+    return maxoff,sigma
+    
+
+def getErrMid50(offsets, Prob, del_off, debug=False):
     """
     Centers the Probability distribution at where 50% of the 
         probability is at 0.5. It then integrates the Probability on either side of
@@ -99,6 +128,7 @@ def getErrMid50(offsets, Prob, del_off):
     center = np.argmax(Prob)
     CProb = np.roll(Prob, len(offsets)/2 - np.argmax(Prob))
     Area = integrate.cumtrapz(CProb,dx=del_off)
+    print Area
     center2 = (np.argwhere(Area>0.5)[0])[0] - len(offsets)/2
     newCProb = np.roll(CProb,-center2)
     halfN1 = newCProb[:len(offsets)/2]
@@ -123,17 +153,42 @@ def getErrMid50(offsets, Prob, del_off):
     offset=(center2+center)*del_off
     sigma=(a+b)/2.0*del_off
 
-    #plt.plot(offsets, CProb) 
-    #plt.vlines(offsets[len(CProb)/2+center2], 0, max(CProb)*1.05,linestyles='dotted' )
-    #plt.errorbar(offsets[len(CProb)/2+center2],0.5*max(CProb), xerr=sigma,fmt='o')
-    #plt.show()
+    if debug:
+        plt.plot(offsets, CProb) 
+        plt.vlines(offsets[len(CProb)/2+center2], 0, max(CProb)*1.05,linestyles='dotted' )
+        plt.errorbar(offsets[len(CProb)/2+center2],0.5*max(CProb), xerr=sigma,fmt='o')
+        plt.show()
 
     return offset, sigma 
 
-def getErr(offsets, Prob, del_off):
+def get_error_gaussfit(offsets, prob, del_off, debug=False):
+    """
+    Fits a gaussian to the probability distribution 
+        to get the phase-offset error (the width of the gaussian)
+    """
+
+    maxoff = offsets[np.argmax(prob)]
+    prob_centered = np.roll(prob, len(offsets)/2 - np.argmax(prob))
+    
+    p0 = 0.05
+    errfunc = lambda p, x, y: (y - stats.norm.pdf(x, loc=0.5, scale=p))
+    output = optimize.leastsq(errfunc, p0, args=(offsets,prob_centered))
+    sigma = output[0]
+    
+    if debug:
+        plt.errorbar(offsets[np.argmax(prob_centered)],0.5*max(prob_centered), xerr=sigma,fmt='o')
+        plt.plot(offsets, prob_centered)
+        plt.plot(offsets, stats.norm.pdf(offsets, loc=0.5, scale=output[0]), "r--")
+        plt.axvline(0.5,ls='dotted')
+        plt.show()
+
+    return maxoff, sigma
+    
+
+def getErr(offsets, Prob, del_off, debug=False):
     """ 
     Integrates the Probability on either side of
-        the max, returns average distance to 34.1% of area covered'''
+        the max, returns average distance to 34.1% of area covered
     """
 
     maxoff = offsets[np.argmax(Prob)]
@@ -159,14 +214,15 @@ def getErr(offsets, Prob, del_off):
 
     sigma = (a+b) / 2.0 * del_off
 
-    #plt.errorbar(offsets[np.argmax(CProb)],0.5*max(CProb), xerr=sigma,fmt='o')
-    #plt.plot(offsets, CProb)
-    #plt.axvline(0.5,ls='dotted')
-    #plt.show()
+    if debug:
+        plt.errorbar(offsets[np.argmax(CProb)],0.5*max(CProb), xerr=sigma,fmt='o')
+        plt.plot(offsets, CProb)
+        plt.axvline(0.5,ls='dotted')
+        plt.show()
 
     return maxoff, sigma 
 
-def simErr(prof_mod,N_counts,phases,from_template=True):
+def simErr(prof_mod,N_counts,phases,from_template=True, debug=False):
     """
     Estimate the error using simulations.
         Pulls N_counts random phases from the template where N_counts
@@ -200,18 +256,20 @@ def simErr(prof_mod,N_counts,phases,from_template=True):
         sim_offsets.append((sim_offset+0.5) % 1.0)
         run += 1
 
-    #median = np.median(sim_offsets)
-    #mad = np.median(np.abs(sim_offsets-median))
-    #plt.hist(sim_offsets)
-    #print "Std dev offsets",np.std(sim_offsets)
-    #print "MAD offsets",mad
-    #plt.show()
+    if debug:
+        median = np.median(sim_offsets)
+        mad = np.median(np.abs(sim_offsets-median))
+        plt.hist(sim_offsets)
+        print "Std dev offsets",np.std(sim_offsets)
+        print "MAD offsets",mad
+        plt.show()
 
     sys.stderr.write("Sim 100%% Complete \n")
     return np.std(sim_offsets)
 
 
-def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False, bg_counts=0):
+def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=False, \
+                    bg_counts=0, debug=False):
     """
     Calculate an offset between the observation pulse profile and the template pulse profile.
        This is done using the raw events (as phases) and a continuous model of the template
@@ -255,17 +313,19 @@ def calc_toa_offset(phases,prof_mod,sim_err=False,no_err=False, bg_counts=0):
 
     if sim_err:
         maxoff = offsets[np.argmax(probs)]
-        error = simErr(prof_mod,len(phases)-bg_counts,phases,from_template=True) 
+        error = simErr(prof_mod,len(phases)-bg_counts,phases,from_template=True, debug=debug) 
     elif no_err:
         maxoff = offsets[np.argmax(probs)]
         error = None
+    elif gauss_err:
+        maxoff, error = get_error_gaussfit(offsets, probs_norm, del_off, debug=debug)
     else:
-        maxoff, error = getErrMid50(offsets, probs_norm, del_off)
+        maxoff, error = get_error(offsets, probs_norm, del_off, debug=debug)
     
     return maxoff, error
 
 def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=False, frequency=None, epoch=None, \
-               sim=False, bg_counts=0, Emin=None, Emax=None):
+               sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, debug=False):
 
 
     print_timings = False # if want to print summary of runtime
@@ -290,10 +350,11 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
         exposure = fits[0].header['EXPOSURE']
     obsid = fits[0].header['OBS_ID']
 
-    if bg_counts == -99:
+    if bg_counts < 0:
+        bg_scale = -1.0*bg_counts
         bg_fits_fn = fits_fn.replace('reg','bgreg')
         bg_fits = pyfits.open(bg_fits_fn)
-        bg_counts = bg_fits[1].header['NAXIS2']
+        bg_counts = int(bg_fits[1].header['NAXIS2'] * bg_scale)
         print 'BG Counts:',bg_counts
         bg_fits.close()
 
@@ -317,7 +378,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
     phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], 
                                    par.fdots[2], par.fdots[3]) 
 
-    maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim,bg_counts=bg_counts)
+    maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
 
     if chandra or xmm:
         midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
