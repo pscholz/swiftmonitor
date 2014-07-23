@@ -117,49 +117,6 @@ def get_error(offsets, prob, del_off, debug=False):
         plt.show()
 
     return maxoff,sigma
-    
-
-def getErrMid50(offsets, Prob, del_off, debug=False):
-    """
-    Centers the Probability distribution at where 50% of the 
-        probability is at 0.5. It then integrates the Probability on either side of
-        the max, returns average distance to 34.1% of area covered
-    """
-    center = np.argmax(Prob)
-    CProb = np.roll(Prob, len(offsets)/2 - np.argmax(Prob))
-    Area = integrate.cumtrapz(CProb,dx=del_off)
-    print Area
-    center2 = (np.argwhere(Area>0.5)[0])[0] - len(offsets)/2
-    newCProb = np.roll(CProb,-center2)
-    halfN1 = newCProb[:len(offsets)/2]
-    halfN2 = newCProb[len(offsets)/2:]
-    AreaN1 = integrate.cumtrapz(halfN1,dx=del_off)
-    AreaN2 = integrate.cumtrapz(halfN2,dx=del_off)
-    i = 0
-    init = 10000
-    a = init
-    j = 0
-    b = init       
-
-    while a == init and i < len(AreaN2):
-        if AreaN2[i]>0.341:
-            a = i
-        i = i + 1
-
-    while b == init and j<len(AreaN1):
-        if AreaN1[j]>0.341:
-            b=len(AreaN1)-j
-        j=j+1  
-    offset=(center2+center)*del_off
-    sigma=(a+b)/2.0*del_off
-
-    if debug:
-        plt.plot(offsets, CProb) 
-        plt.vlines(offsets[len(CProb)/2+center2], 0, max(CProb)*1.05,linestyles='dotted' )
-        plt.errorbar(offsets[len(CProb)/2+center2],0.5*max(CProb), xerr=sigma,fmt='o')
-        plt.show()
-
-    return offset, sigma 
 
 def get_error_gaussfit(offsets, prob, del_off, debug=False):
     """
@@ -183,44 +140,6 @@ def get_error_gaussfit(offsets, prob, del_off, debug=False):
         plt.show()
 
     return maxoff, sigma
-    
-
-def getErr(offsets, Prob, del_off, debug=False):
-    """ 
-    Integrates the Probability on either side of
-        the max, returns average distance to 34.1% of area covered
-    """
-
-    maxoff = offsets[np.argmax(Prob)]
-    CProb = np.roll(Prob, len(offsets)/2 - np.argmax(Prob))
-    half1 = CProb[:len(offsets)/2]
-    half2 = CProb[len(offsets)/2:]
-    Area1 = integrate.cumtrapz(half1,dx=del_off)
-    Area2 = integrate.cumtrapz(half2,dx=del_off)
-    i = 0
-    a = 0
-    j = 0
-    b = 0       
-
-    while a == 0:
-        if Area2[i] > 0.341:
-            a = i
-        i = i + 1
-
-    while b == 0:
-        if Area1[j] > 0.341:
-            b = len(Area1) - j
-        j = j + 1  
-
-    sigma = (a+b) / 2.0 * del_off
-
-    if debug:
-        plt.errorbar(offsets[np.argmax(CProb)],0.5*max(CProb), xerr=sigma,fmt='o')
-        plt.plot(offsets, CProb)
-        plt.axvline(0.5,ls='dotted')
-        plt.show()
-
-    return maxoff, sigma 
 
 def simErr(prof_mod,N_counts,phases,from_template=True, debug=False):
     """
