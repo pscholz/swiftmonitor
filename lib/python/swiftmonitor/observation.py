@@ -247,7 +247,8 @@ class Observation:
     """
 
     # find best attitude file available (uat > pat > sat)
-    attexts = ["uat.fits.gz", "pat.fits.gz", "sat.fits.gz"]
+    #attexts = ["uat.fits.gz", "pat.fits.gz", "sat.fits.gz"]
+    attexts = ["pat.fits.gz", "sat.fits.gz"]
 
     for attext in attexts:
         attfile = glob.glob(os.path.join(self.path,'raw/auxil/sw*' + attext))
