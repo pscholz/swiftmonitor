@@ -141,7 +141,7 @@ def get_error_gaussfit(offsets, prob, del_off, debug=False):
 
     return maxoff, sigma
 
-def simErr(prof_mod,N_counts,phases,from_template=True, debug=False):
+def sim_error(prof_mod,N_counts,phases,from_template=True, debug=False):
     """
     Estimate the error using simulations.
         Pulls N_counts random phases from the template where N_counts
@@ -232,7 +232,7 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
 
     if sim_err:
         maxoff = offsets[np.argmax(probs)]
-        error = simErr(prof_mod,len(phases)-bg_counts,phases,from_template=True, debug=debug) 
+        error = sim_error(prof_mod,len(phases)-bg_counts,phases,from_template=True, debug=debug) 
     elif no_err:
         maxoff = offsets[np.argmax(probs)]
         error = None
