@@ -244,7 +244,7 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     return maxoff, error
 
 def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=False, frequency=None, epoch=None, \
-               sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, debug=False):
+               sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False):
 
 
     print_timings = False # if want to print summary of runtime
@@ -311,7 +311,11 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
 
     toaf = t0f + maxoff*p_mid / SECPERDAY
     newdays = int(np.floor(toaf))
-    psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+ 
+    if tempo2:
+        psr_utils.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+    else:
+        psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
 
     if print_offs:
         print "\t",error*p_mid*1.0e6,"\t",exposure
