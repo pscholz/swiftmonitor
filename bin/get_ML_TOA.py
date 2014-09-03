@@ -36,9 +36,9 @@ parser.add_option("--xmm",
 		  help="Event files are from xmm, not swift.",
 		  default=False)
 parser.add_option("--offsets",
-		  dest="offsets", action='store_true',
-		  help="Print phase offset used for TOA.",
-		  default=False)
+		  dest="offsets", type='string',
+		  help="File to write phase offset used for TOA.",
+		  default=None)
 parser.add_option("--periodogram",
 		  dest="periodogram", type='string',
 		  help="Name of periodogram.py output file to use as input.",
@@ -85,7 +85,7 @@ if options.periodogram:
     ml_toa.get_ml_toa(fitsfile, prof_mod, None, chandra=options.chandra, xmm=options.xmm, bg_counts=options.bg_counts, \
                       print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i], sim=options.sim, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
-                      debug=option.plot_dist)
+                      debug=options.plot_dist)
 
 else:
   if options.list:

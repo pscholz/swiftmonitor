@@ -243,7 +243,7 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     
     return maxoff, error
 
-def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=False, frequency=None, epoch=None, \
+def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=None, frequency=None, epoch=None, \
                sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False):
 
 
@@ -318,8 +318,11 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
         psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
 
     if print_offs:
-        print "\t",error*p_mid*1.0e6,"\t",exposure
-        print obsid,"\tOffset:",maxoff,"+/-",error 
+        offs_file = open(print_offs,'a')
+        #print "\t",error*p_mid*1.0e6,"\t",exposure # this was for checking uncertainties scaling with exposure time
+        offs_file.write(fits_fn + "\t" + str(maxoff) + "\t" + str(error) + "\n")
+        #print obsid,"\tOffset:",maxoff,"+/-",error 
+        offs_file.close()
 
     fits.close()
 
