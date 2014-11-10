@@ -319,22 +319,26 @@ class Observation:
       if a pulsar is defined for the Observation object, otherwise the RA and Dec from
       the fits header will be used.
     """
-    print "Barycentreing observation...\n"
-
     self.baryfile = self.obsroot + '_bary.evt'
 
+    outfile = os.path.join(self.path,self.baryfile)
+    infile = os.path.join(self.path,self.obsfile)
+    orbitfile = os.path.join(self.path,self.orbitfile)
+
     if RA and Dec:
-      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
-            (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, RA, Dec)
+      ftools.barycentre(infile, outfile, orbitfile, RA=RA, Dec=Dec)
+      #cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
+      #      (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, RA, Dec)
     elif self.pulsar:
-      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
-            (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, self.ra, self.dec)
+      ftools.barycentre(infile, outfile, orbitfile, RA=self.ra, Dec=self.dec)
+      #cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
+      #      (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, self.ra, self.dec)
     else:
-      print "No RA and Dec given. Using RA and Dec of target in fits header..."
-      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s clobber=yes' %\
-            (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile)
+      ftools.barycentre(infile, outfile, orbitfile)
+      #cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s clobber=yes' %\
+      #      (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile)
       
-    bary_time = timed_execute(cmd)
+    #bary_time = timed_execute(cmd)
 
   def extract(self,outroot,infile=None,events=True,image=False,pha=False,lc=False,region=None,\
               grade=None,gtifile=None,chanlow=0,chanhigh=1023):
