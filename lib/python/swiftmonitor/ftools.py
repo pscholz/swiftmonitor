@@ -1,5 +1,5 @@
 import os, sys, time, shutil
-import pyfits
+import astropy.io.fits as pyfits
 import numpy as np
 import subprocess
 import re
@@ -36,6 +36,26 @@ def execute_cmd(cmd, stdout=sys.stdout, stderr=sys.stderr):
         pass
 
     return (stdoutdata, stderrdata)
+
+
+def barycentre(infile, outfile, orbitfile, RA=None, Dec=None):
+    """
+    Barycentre the observation. If not provided a RA and Dec, will use pulsar RA and Dec
+      if a pulsar is defined for the Observation object, otherwise the RA and Dec from
+      the fits header will be used.
+    """
+    print "Barycentreing observation...\n"
+  
+    if RA and Dec:
+      cmd = 'barycorr infile=%s outfile=%s orbitfiles=%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
+            (infile, outfile, orbitfile, RA, Dec)
+    else:
+      print "No RA and Dec given. Using RA and Dec of target in fits header..."
+      cmd = 'barycorr infile=%s outfile=%s orbitfiles=%s clobber=yes' %\
+            (infile, outfile, orbitfile)
+      
+    bary_time = execute_cmd(cmd)
+
 
 def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=None,\
             grade=None,gtifile=None,chanlow=0,chanhigh=1023):

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import optimize, integrate, stats
 import matplotlib.pyplot as plt
-import pyfits
+import astropy.io.fits as pyfits
 import sys
 import psr_utils
 from psr_constants import SECPERDAY

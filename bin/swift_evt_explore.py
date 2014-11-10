@@ -5,7 +5,7 @@ import os
 import tempfile
 import matplotlib.pyplot as plt
 import numpy as np
-import pyfits
+import astropy.io.fits as pyfits
 from matplotlib import cm
 import matplotlib.ticker
 from optparse import OptionParser

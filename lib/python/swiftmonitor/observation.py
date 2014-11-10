@@ -1,7 +1,7 @@
 import os, sys, time, shutil, glob
 import numpy as np
 import subprocess, re, pickle
-import pyfits
+import astropy.io.fits as pyfits
 import swiftmonitor.config
 from swiftmonitor import ftools, utils
 
@@ -322,9 +322,9 @@ class Observation:
     print "Barycentreing observation...\n"
 
     self.baryfile = self.obsroot + '_bary.evt'
-    # put swco.dat in /exports/scratch/software/heasoft-6.11/x86_64-unknown-linux-gnu/refdata/ 
+
     if RA and Dec:
-      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=swco.dat' %\
+      cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
             (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, RA, Dec)
     elif self.pulsar:
       cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
