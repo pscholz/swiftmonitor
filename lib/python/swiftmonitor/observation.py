@@ -372,40 +372,45 @@ class Observation:
       else:
         print "Using baryfile as input."
         infile = self.path + self.baryfile
+
+    full_outroot = os.path.join(self.path,outroot)
+
+    ftools.extract(full_outroot,infile,events=events,image=image,pha=pha,lc=lc,region=region, \
+                   grade=grade,gtifile=gtifile,chanlow=chanlow,chanhigh=chanhigh)
    
-    args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE xcolh=X ycolh=Y gti='GTI' " %\
-            (infile, chanlow, chanhigh)
+    #args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE xcolh=X ycolh=Y gti='GTI' " %\
+    #        (infile, chanlow, chanhigh)
 
-    if image:
-      args += 'imgfile=%s%s.img ' % (self.path, outroot)
-    else:
-      args += 'imgfile=NONE '
-    if pha:
-      args += 'phafile=%s%s.pha ' % (self.path, outroot)
-    else:
-      args += 'phafile=NONE '
-    if lc:
-      args += 'fitsbinlc=%s%s.lc ' % (self.path, outroot)
-    else:
-      args += 'fitsbinlc=NONE '
-    if events:
-      args += 'eventsout=%s%s.evt ' % (self.path, outroot)
-    else:
-      args += 'eventsout=NONE '
-    if region:
-      args += 'regionfile=%s ' % region
-    else:
-      args += 'regionfile=NONE '
-    if gtifile:
-      args += 'timefile=%s ' % gtifile
-    else:
-      args += 'timefile=NONE '
-    if grade:
-      args += 'gstring=%s ' % grade
+    #if image:
+    #  args += 'imgfile=%s%s.img ' % (self.path, outroot)
+    #else:
+    #  args += 'imgfile=NONE '
+    #if pha:
+    #  args += 'phafile=%s%s.pha ' % (self.path, outroot)
+    #else:
+    #  args += 'phafile=NONE '
+    #if lc:
+    #  args += 'fitsbinlc=%s%s.lc ' % (self.path, outroot)
+    #else:
+    #  args += 'fitsbinlc=NONE '
+    #if events:
+    #  args += 'eventsout=%s%s.evt ' % (self.path, outroot)
+    #else:
+    #  args += 'eventsout=NONE '
+    #if region:
+    #  args += 'regionfile=%s ' % region
+    #else:
+    #  args += 'regionfile=NONE '
+    #if gtifile:
+    #  args += 'timefile=%s ' % gtifile
+    #else:
+    #  args += 'timefile=NONE '
+    #if grade:
+    #  args += 'gstring=%s ' % grade
 
-    args += 'clobber=yes'
-    cmd = 'extractor ' + args 
-    extract_time = timed_execute(cmd)
+    #args += 'clobber=yes'
+    #cmd = 'extractor ' + args 
+    #extract_time = timed_execute(cmd)
 
   def find_centroid(self,force_redo=False,use_max=True):
     """

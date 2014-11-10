@@ -59,7 +59,7 @@ def barycentre(infile, outfile, orbitfile, RA=None, Dec=None, clockfile='CALDB')
 def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=None,\
             grade=None,gtifile=None,chanlow=0,chanhigh=1023):
     """
-    Wrapper for extractor ftool. If infile is None will use baryfile or obsfile as input.
+    Wrapper for extractor ftool.
  
       Arguments:
         - outroot: root of the output files. Will attach extension depending on
