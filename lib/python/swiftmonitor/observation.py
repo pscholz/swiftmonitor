@@ -327,18 +327,10 @@ class Observation:
 
     if RA and Dec:
       ftools.barycentre(infile, outfile, orbitfile, RA=RA, Dec=Dec)
-      #cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
-      #      (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, RA, Dec)
     elif self.pulsar:
       ftools.barycentre(infile, outfile, orbitfile, RA=self.ra, Dec=self.dec)
-      #cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s ra=%s dec=%s clobber=yes clockfile=CALDB' %\
-      #      (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile, self.ra, self.dec)
     else:
       ftools.barycentre(infile, outfile, orbitfile)
-      #cmd = 'barycorr infile=%s/%s outfile=%s/%s orbitfiles=%s/%s clobber=yes' %\
-      #      (self.path, self.obsfile, self.path, self.baryfile, self.path, self.orbitfile)
-      
-    #bary_time = timed_execute(cmd)
 
   def extract(self,outroot,infile=None,events=True,image=False,pha=False,lc=False,region=None,\
               grade=None,gtifile=None,chanlow=0,chanhigh=1023):
@@ -378,40 +370,6 @@ class Observation:
     ftools.extract(full_outroot,infile,events=events,image=image,pha=pha,lc=lc,region=region, \
                    grade=grade,gtifile=gtifile,chanlow=chanlow,chanhigh=chanhigh)
    
-    #args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE xcolh=X ycolh=Y gti='GTI' " %\
-    #        (infile, chanlow, chanhigh)
-
-    #if image:
-    #  args += 'imgfile=%s%s.img ' % (self.path, outroot)
-    #else:
-    #  args += 'imgfile=NONE '
-    #if pha:
-    #  args += 'phafile=%s%s.pha ' % (self.path, outroot)
-    #else:
-    #  args += 'phafile=NONE '
-    #if lc:
-    #  args += 'fitsbinlc=%s%s.lc ' % (self.path, outroot)
-    #else:
-    #  args += 'fitsbinlc=NONE '
-    #if events:
-    #  args += 'eventsout=%s%s.evt ' % (self.path, outroot)
-    #else:
-    #  args += 'eventsout=NONE '
-    #if region:
-    #  args += 'regionfile=%s ' % region
-    #else:
-    #  args += 'regionfile=NONE '
-    #if gtifile:
-    #  args += 'timefile=%s ' % gtifile
-    #else:
-    #  args += 'timefile=NONE '
-    #if grade:
-    #  args += 'gstring=%s ' % grade
-
-    #args += 'clobber=yes'
-    #cmd = 'extractor ' + args 
-    #extract_time = timed_execute(cmd)
-
   def find_centroid(self,force_redo=False,use_max=True):
     """
     Finds centroid of source (hopefully)
