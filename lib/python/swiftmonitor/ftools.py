@@ -53,11 +53,12 @@ def barycentre(infile, outfile, orbitfile, RA=None, Dec=None, clockfile='CALDB')
       cmd = 'barycorr infile=%s outfile=%s orbitfiles=%s clobber=yes clockfile=%s' %\
             (infile, outfile, orbitfile, clockfile)
       
-    bary_time = execute_cmd(cmd)
+    execute_cmd(cmd)
 
 
 def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=None,\
-            grade=None,gtifile=None,chanlow=0,chanhigh=1023):
+            grade=None,gtifile=None, xcol='X', ycol='Y', ecol='PI', chanlow=0,chanhigh=1023, \
+            events_extn='EVENTS',gti_extn='GTI'):
     """
     Wrapper for extractor ftool.
  
@@ -80,8 +81,8 @@ def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=Non
        
     """
 
-    args = "'%s[PI = %d : %d]' xcolf=X ycolf=Y tcol=TIME ecol=PI gcol=GRADE xcolh=X ycolh=Y gti='GTI' " %\
-            (infile, chanlow, chanhigh)
+    args = "'%s[%s = %d : %d]' xcolf=%s ycolf=%s tcol=TIME ecol=%s gcol=GRADE xcolh=%s ycolh=%s events=%s gti=%s " %\
+            (infile, ecol, chanlow, chanhigh, xcol, ycol, ecol, xcol, ycol, events_extn, gti_extn)
 
     if image:
       args += 'imgfile=%s.img ' % outroot
@@ -112,7 +113,7 @@ def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=Non
 
     args += 'clobber=yes'
     cmd = 'extractor ' + args 
-    extract_time = execute_cmd(cmd)
+    execute_cmd(cmd)
 
 def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True):
     """
