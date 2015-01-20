@@ -35,6 +35,10 @@ parser.add_option("--xmm",
 		  dest="xmm", action='store_true',
 		  help="Event files are from xmm, not swift.",
 		  default=False)
+parser.add_option("--xte",
+		  dest="xte", action='store_true',
+		  help="Event files are from xte, not swift.",
+		  default=False)
 parser.add_option("--offsets",
 		  dest="offsets", type='string',
 		  help="File to write phase offset used for TOA.",
@@ -82,7 +86,7 @@ if options.periodogram:
   flist = np.loadtxt(options.periodogram,usecols=[0],dtype='S')
   epoch, frequency = np.loadtxt(options.periodogram,usecols=[1,2],dtype='float',unpack=True)
   for i,fitsfile in enumerate(flist):
-    ml_toa.get_ml_toa(fitsfile, prof_mod, None, chandra=options.chandra, xmm=options.xmm, bg_counts=options.bg_counts, \
+    ml_toa.get_ml_toa(fitsfile, prof_mod, None, chandra=options.chandra, xmm=options.xmm, xte=options.xte, bg_counts=options.bg_counts, \
                       print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i], sim=options.sim, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
                       debug=options.plot_dist)
@@ -94,7 +98,7 @@ else:
     flist = args[0:]
 
   for fitsfile in flist:
-    ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, \
+    ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, xte=options.xte, \
                       print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
                       debug=options.plot_dist)

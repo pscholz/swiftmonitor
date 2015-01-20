@@ -3,6 +3,7 @@ from scipy import optimize, integrate, stats
 import matplotlib.pyplot as plt
 import astropy.io.fits as pyfits
 import sys
+import os.path
 import psr_utils
 from psr_constants import SECPERDAY
 from swiftmonitor.utils import randomvariate, events_from_binned_profile
@@ -34,6 +35,16 @@ def sw2mjd(times):
     SWREFF = 7.4287037E-4 # fractional part of Swift reference epoch in mjd
 
     mjds = SWREFI + SWREFF + times/86400.0
+    return mjds
+
+def xte2mjd(times):
+    """
+    Returns a list of MJDs calculated from an input list Swift mission times 
+    """
+    XTEREFI = 49353.0 # integer part of XTE reference epoch in mjd
+    XTEREFF = 0.000696574074 # fractional part of XTE reference epoch in mjd
+
+    mjds = XTEREFI + XTEREFF + times/86400.0
     return mjds
 
 def chandra2mjd(times):
@@ -243,7 +254,7 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     
     return maxoff, error
 
-def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=None, frequency=None, epoch=None, \
+def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, print_offs=None, frequency=None, epoch=None, \
                sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False):
 
 
@@ -267,7 +278,11 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
 
     if not chandra:
         exposure = fits[0].header['EXPOSURE']
-    obsid = fits[0].header['OBS_ID']
+
+    try:
+        obsid = fits[0].header['OBS_ID']
+    except KeyError:
+        obsid = os.path.basename(fits_fn)
 
     if bg_counts < 0:
         bg_scale = -1.0*bg_counts
@@ -277,10 +292,12 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
         print 'BG Counts:',bg_counts
         bg_fits.close()
 
-    if chandra and xmm:
-        raise ValueError('Data can only be from one of Chandra and XMM!')
+    if (chandra and xte) or (xmm and xte):
+        raise ValueError('Data can only be from one of Chandra/XMM and RXTE!')
     elif chandra or xmm:
         t = chandra2mjd(swift_t) # XMM and chandra use same MJDREF
+    elif xte:
+        t = xte2mjd(swift_t)
     else:
         t = sw2mjd(swift_t)
 
@@ -301,6 +318,8 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, print_offs=
 
     if chandra or xmm:
         midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
+    elif xte:
+        midtime = ( xte2mjd(fits[0].header['TSTART']) + xte2mjd(fits[0].header['TSTOP']) ) / 2.0
     else:
         midtime = ( sw2mjd(fits[0].header['TSTART']) + sw2mjd(fits[0].header['TSTOP']) ) / 2.0
     p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0])
