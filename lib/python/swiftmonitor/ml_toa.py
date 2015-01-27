@@ -73,16 +73,16 @@ def readParfile(parname):
        [F0,F1,F2,F3,F4,PEPOCH]
     """
     F = np.loadtxt(parname, dtype='S')
-    freqs = np.zeros(6)
+    freqs = np.zeros(11)
     epoch = 0
 
     for line in F:
-        for i in range(0,5):
+        for i in range(0,10):
             if line[0].startswith('F'+str(i)):
                 freqs[i] = line[1].replace('D','E')
         if line[0].startswith('PEPOCH'):
             epoch = line[1].replace('D','E')
-            freqs[5] = np.double(epoch)     
+            freqs[10] = np.double(epoch)     
     return freqs 
 
 class PSRpar:
@@ -94,9 +94,9 @@ class PSRpar:
     """
     def __init__(self,parfile):
         A = readParfile(parfile)
-        self.epoch = A[5]
+        self.epoch = A[10]
         self.f0 = A[0]
-        self.fdots = A[1:5]
+        self.fdots = A[1:10]
 
     def __repr__(self):
         return repr((self.f0, self.fdots, self.epoch))    
@@ -217,7 +217,7 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     global integratetime
 
     probs = []
-    del_off = 0.0001
+    del_off = 0.001
     offsets = np.arange(0,1,del_off)
     offsets = np.append(offsets,1.0)
 
@@ -305,14 +305,14 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
         par = lambda: None
         par.epoch = epoch
         par.f0 = frequency
-        par.fdots = [0.0,0.0,0.0,0.0]
+        par.fdots = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
     else:
         par = PSRpar(parfile)
 
     sys.stderr.write('Measuring TOA for %s\n' % obsid)
 
-    phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], 
-                                   par.fdots[2], par.fdots[3]) 
+    phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
+                                   par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
 
     maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
 
@@ -322,9 +322,11 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
         midtime = ( xte2mjd(fits[0].header['TSTART']) + xte2mjd(fits[0].header['TSTOP']) ) / 2.0
     else:
         midtime = ( sw2mjd(fits[0].header['TSTART']) + sw2mjd(fits[0].header['TSTOP']) ) / 2.0
-    p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0])
+    p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
+                                    par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
 
-    t0 = psr_utils.calc_t0(midtime, par.epoch, par.f0, par.fdots[0])
+    t0 = psr_utils.calc_t0(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
+                           par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
     t0i = int(t0)
     t0f = t0 - t0i
 
