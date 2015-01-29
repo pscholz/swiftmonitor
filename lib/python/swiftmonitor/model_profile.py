@@ -46,6 +46,7 @@ class Profile_Model():
     """
     Fits a profile with a model.
       - takes a profile (array of counts per bin) as an argument.
+      - sets self.prof_mod to fitted profile model
       - returns profile model
     """
     raise NotImplementedError("The fit_profile() function must be defined"\
@@ -133,6 +134,9 @@ class Fourier_Model(Profile_Model):
     p1, success = optimize.leastsq(errfunc, p0, args=(phase, grand, err))
     norm = integrate.quad(lambda x: fourier_fit(p1,x) , 0, 1)
     prof_mod = lambda x: fourier_fit(p1,x) / norm[0]
+
+    self.prof_mod = prof_mod
+
     return prof_mod
 
 class Lin_Interp(Profile_Model):
@@ -154,13 +158,17 @@ class Lin_Interp(Profile_Model):
     area = integrate.trapz(grand, x=phase)
     grand = grand/area
     prof_mod = lambda x: np.interp(x%1, phase, grand)
+
+    self.prof_mod = prof_mod
+
     return prof_mod
 
 def makeProfileModel(model, profile):
   mod_type = find_model(model)
   mod = mod_type(profile)  
+  mod.fit_profile()
   
-  return mod.fit_profile()
+  return mod
 
 
 def ProfileModelError(Exception):
@@ -189,7 +197,7 @@ if __name__ == '__main__':
   (options,args) = parser.parse_args()
 
   profile = np.loadtxt(args[0])
-  prof_mod = makeProfileModel(options.model,profile)
+  mod = makeProfileModel(options.model,profile)
   x = np.arange(0,1,0.001)
-  plt.plot(x,prof_mod(x))
+  plt.plot(x,mod.prof_mod(x))
   plt.show()
