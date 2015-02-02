@@ -100,44 +100,65 @@ class Sine_Model(Profile_Model):
     return prof_mod
 
 class Fourier_Model(Profile_Model):
-  '''Given a grand Profile, this returns a 
-     Probability distribution by the first N fourier coeffs'''
-  @classmethod
-  def get_name(cls):
-    return 'fourier'
+    """
+    Given a grand Profile, this returns a 
+      Probability distribution calculated from the
+      the first N fourier coeffs
+    """
+    @classmethod
+    def get_name(cls):
+        return 'fourier'
 
+    def fit_profile(self, profile=None, N=5):
 
-  def fit_profile(self, profile=None, N=5):
+        if not profile:
+          profile = self.profile
 
-    if not profile:
-      profile = self.profile
+        phase = profile.T[0] / len(profile)
+        grand = profile.T[1]
+        err = np.sqrt(grand)
+        self.nbins = len(profile)
 
-    phase = profile.T[0] / len(profile)
-    grand = profile.T[1]
-    phase = np.append(phase,1)
-    grand = np.append(grand, grand[0])
-    err = np.sqrt(grand)
-    comp=np.fft.fft(grand)
-    icomps=np.zeros(1000)
-    p=np.linspace(0,1,1000)
-    for i in range (1,N+1):
-      icomps+=comp[i]*np.exp(2j * np.pi * p*i)
-    icomp = lambda x: np.interp(x%1, p, icomps)
+        comp = np.fft.rfft(grand)
+        self.comp = comp
 
-    def fourier_fit(p,x):
-      x = x % 1.0
-      y = p[0]*icomp(x) + p[1]
-      return y
+        icomps = np.zeros(1000)
+        phi = np.linspace(0,1,1000)
 
-    p0 = [1,2]
-    errfunc = lambda p, x, y, err: (y - fourier_fit(p, x)) / err
-    p1, success = optimize.leastsq(errfunc, p0, args=(phase, grand, err))
-    norm = integrate.quad(lambda x: fourier_fit(p1,x) , 0, 1)
-    prof_mod = lambda x: fourier_fit(p1,x) / norm[0]
+        for i in range (1,N+1):
+            icomps+=2*comp[i]*np.exp(2j * np.pi * phi * i)
+        icomps += comp[0]
+        icomps /= len(grand)
+        icomp = lambda x: np.interp(x%1, phi, icomps)
 
-    self.prof_mod = prof_mod
+        norm = integrate.quad(icomp, 0, 1)
+        prof_mod = lambda x: np.interp(x%1, phi, icomps) / norm[0]
 
-    return prof_mod
+        self.prof_mod = prof_mod
+
+        return prof_mod
+
+    def recalc_profile(self,N=5):
+        """
+        Recalc the model after changing the fourier components (self.comp)
+        """
+
+        comp = self.comp
+        icomps = np.zeros(1000)
+        phi = np.linspace(0,1,1000)
+
+        for i in range (1,N+1):
+            icomps+=2*comp[i]*np.exp(2j * np.pi * phi * i)
+        icomps += comp[0]
+        icomps /= self.nbins
+        icomp = lambda x: np.interp(x%1, phi, icomps)
+
+        norm = integrate.quad(icomp, 0, 1)
+        prof_mod = lambda x: np.interp(x%1, phi, icomps) / norm[0]
+
+        self.prof_mod = prof_mod
+
+    
 
 class Lin_Interp(Profile_Model):
   @classmethod
