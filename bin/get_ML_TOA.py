@@ -13,8 +13,12 @@ for model in models:
 parser = OptionParser("Usage: %prog [options] fitsfiles\n OR -l file_list", epilog=models_str ,version="%prog 1.0")
 parser.add_option("-m", "--model",
 		  dest="model", type='string',
-		  help="Name of model to fit to profile.",
-		  default=None)
+		  help="Name of model to fit to profile. Default is fourier.",
+		  default='fourier')
+parser.add_option("-n", "--num-harmonics",
+		  dest="num_harmonics", type='int',
+		  help="Number of fourier components to use in fourier model. Default is 5.",
+		  default=5)
 parser.add_option("-f", "--profile",
 		  dest="profile", type='string',
 		  help="Name of profile to fit model to.",
@@ -85,7 +89,7 @@ parser.add_option("--tempo2",
 
 profile = np.loadtxt(options.profile)
 
-prof_mod = model_profile.makeProfileModel(options.model, profile)
+prof_mod = model_profile.makeProfileModel(options.model, profile, nharm=options.num_harmonics)
 
 if options.periodogram:
   flist = np.loadtxt(options.periodogram,usecols=[0],dtype='S')

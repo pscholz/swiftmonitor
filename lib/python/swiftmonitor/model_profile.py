@@ -64,41 +64,6 @@ class Profile_Model():
       raise ProfileModelError("Profile has not yet been fitted."\
                               " Cannot save.")
        
-
-class Sine_Model(Profile_Model):
-  @classmethod
-  def get_name(cls):
-    return 'sine'
-
-  def sine_fit(self, p, x):
-    x = x % 1.0
-    y = p[0]*np.sin(2*np.pi*x +p[1]) + p[2]
-    return y
-
-  def fit_profile(self, profile=None):
-
-    if not profile:
-      profile = self.profile
-
-    x = profile[:,0]  / len(profile)
-    y = profile[:,1]
-    err = np.sqrt(y)
-
-    N = np.mean(y)
-    pfrac = ( np.max(y) - np.min(y) ) / N
-
-    p0 = [ N * pfrac, 0.5, N * (1 - pfrac) ]
-
-    errfunc = lambda p, x, y, err: (y - self.sine_fit(p, x)) / err
-    p1, success = optimize.leastsq(errfunc, p0, args=(x, y, err))
-
-    norm = integrate.quad(lambda x: self.sine_fit(p1,x) , 0, 1)
-    prof_mod = lambda x: self.sine_fit(p1,x) / norm[0]
-
-    self.prof_mod = prof_mod 
-
-    return prof_mod
-
 class Fourier_Model(Profile_Model):
     """
     Given a grand Profile, this returns a 
@@ -112,7 +77,9 @@ class Fourier_Model(Profile_Model):
     def fit_profile(self, profile=None, N=5):
 
         if not profile:
-          profile = self.profile
+            profile = self.profile
+
+        self.nharm = N
 
         phase = profile.T[0] / len(profile)
         grand = profile.T[1]
@@ -122,35 +89,42 @@ class Fourier_Model(Profile_Model):
         comp = np.fft.rfft(grand)
         self.comp = comp
 
-        icomps = np.zeros(1000)
+        icomps = np.zeros(1000,dtype='c16')
         phi = np.linspace(0,1,1000)
 
-        for i in range (1,N+1):
+        for i in range (1,self.nharm+1):
             icomps+=2*comp[i]*np.exp(2j * np.pi * phi * i)
         icomps += comp[0]
         icomps /= len(grand)
+        icomps = np.abs(icomps)
         icomp = lambda x: np.interp(x%1, phi, icomps)
 
         norm = integrate.quad(icomp, 0, 1)
         prof_mod = lambda x: np.interp(x%1, phi, icomps) / norm[0]
+
+        #plt.step(phase,grand,where='mid')
+        #plt.errorbar(phase,grand,err,fmt='bo')
+        #plt.plot(phi,icomp(phi))
+        #plt.show()
 
         self.prof_mod = prof_mod
 
         return prof_mod
 
-    def recalc_profile(self,N=5):
+    def recalc_profile(self):
         """
         Recalc the model after changing the fourier components (self.comp)
         """
 
         comp = self.comp
-        icomps = np.zeros(1000)
+        icomps = np.zeros(1000,dtype='c16')
         phi = np.linspace(0,1,1000)
 
-        for i in range (1,N+1):
+        for i in range (1,self.nharm+1):
             icomps+=2*comp[i]*np.exp(2j * np.pi * phi * i)
         icomps += comp[0]
         icomps /= self.nbins
+        icomps = np.abs(icomps)
         icomp = lambda x: np.interp(x%1, phi, icomps)
 
         norm = integrate.quad(icomp, 0, 1)
@@ -158,7 +132,13 @@ class Fourier_Model(Profile_Model):
 
         self.prof_mod = prof_mod
 
-    
+class Sine_Model(Fourier_Model):
+    @classmethod
+    def get_name(cls):
+        return 'sine'
+
+    def fit_profile(self, profile=None):
+        return Fourier_Model.fit_profile(self,profile=profile,N=1) 
 
 class Lin_Interp(Profile_Model):
   @classmethod
@@ -184,41 +164,44 @@ class Lin_Interp(Profile_Model):
 
     return prof_mod
 
-def makeProfileModel(model, profile):
-  mod_type = find_model(model)
-  mod = mod_type(profile)  
-  mod.fit_profile()
-  
-  return mod
+def makeProfileModel(model, profile, nharm=None):
+    mod_type = find_model(model)
+    mod = mod_type(profile)  
+    if model == 'fourier' and nharm:
+        mod.fit_profile(N=nharm)
+    else:
+        mod.fit_profile()
+    
+    return mod
 
 
 def ProfileModelError(Exception):
-  pass
+    pass
 
 if __name__ == '__main__':
 
-  from optparse import OptionParser
+    from optparse import OptionParser
 
-  models = list_models()
+    models = list_models()
 
-  models_str = "Available Models:  "
-  for model in models:
-    models_str += model + '  '
+    models_str = "Available Models:  "
+    for model in models:
+      models_str += model + '  '
 
-  parser = OptionParser("Usage: %prog [options] profile", epilog=models_str ,version="%prog 1.0")
-  parser.add_option("-m", "--model",
-		    dest="model", type='string',
-		    help="Name of model to fit to profile.",
-		    default=None)
-  parser.add_option("-l", "--linear_interp",
-		    dest="lin_interp", action='store_true',
-		    help="Use linear interpolation.",
-		    default=False)
-   
-  (options,args) = parser.parse_args()
+    parser = OptionParser("Usage: %prog [options] profile", epilog=models_str ,version="%prog 1.0")
+    parser.add_option("-m", "--model",
+          	    dest="model", type='string',
+          	    help="Name of model to fit to profile.",
+          	    default=None)
+    parser.add_option("-l", "--linear_interp",
+          	    dest="lin_interp", action='store_true',
+          	    help="Use linear interpolation.",
+          	    default=False)
+     
+    (options,args) = parser.parse_args()
 
-  profile = np.loadtxt(args[0])
-  mod = makeProfileModel(options.model,profile)
-  x = np.arange(0,1,0.001)
-  plt.plot(x,mod.prof_mod(x))
-  plt.show()
+    profile = np.loadtxt(args[0])
+    mod = makeProfileModel(options.model,profile)
+    x = np.arange(0,1,0.001)
+    plt.plot(x,mod.prof_mod(x))
+    plt.show()
