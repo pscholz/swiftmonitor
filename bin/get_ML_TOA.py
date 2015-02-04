@@ -63,6 +63,11 @@ parser.add_option("--bg-counts",
 		  dest="bg_counts", type='float',
 		  help="Number of counts in background.",
 		  default=0)
+parser.add_option("--correct-pf",
+		  dest="correct_pf", action='store_true',
+		  help="Rescale the template profile to have the same pulsed " \
+                       + "fraction as the observation for which the TOA is being calculated.",
+		  default=0)
 parser.add_option("--Emin",
 		  dest="emin", type='float',
 		  help="Minimum energy of events to use (works only for Swift).",
@@ -89,7 +94,7 @@ if options.periodogram:
     ml_toa.get_ml_toa(fitsfile, prof_mod, None, chandra=options.chandra, xmm=options.xmm, xte=options.xte, bg_counts=options.bg_counts, \
                       print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i], sim=options.sim, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
-                      debug=options.plot_dist)
+                      debug=options.plot_dist, correct_pf=options.correct_pf)
 
 else:
   if options.list:
@@ -101,5 +106,5 @@ else:
     ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, chandra=options.chandra, xmm=options.xmm, xte=options.xte, \
                       print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
-                      debug=options.plot_dist)
+                      debug=options.plot_dist,correct_pf=options.correct_pf)
 

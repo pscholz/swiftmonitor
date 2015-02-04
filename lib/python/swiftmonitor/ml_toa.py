@@ -29,7 +29,7 @@ def logsumexp(array):
 
 def sw2mjd(times):
     """
-    Returns a list of MJDs calculated from an input list Swift mission times 
+    Returns a list of MJDs calculated from an input list of Swift mission times 
     """
     SWREFI = 51910.0 # integer part of Swift reference epoch in mjd
     SWREFF = 7.4287037E-4 # fractional part of Swift reference epoch in mjd
@@ -39,7 +39,7 @@ def sw2mjd(times):
 
 def xte2mjd(times):
     """
-    Returns a list of MJDs calculated from an input list Swift mission times 
+    Returns a list of MJDs calculated from an input list of XTE mission times 
     """
     XTEREFI = 49353.0 # integer part of XTE reference epoch in mjd
     XTEREFF = 0.000696574074 # fractional part of XTE reference epoch in mjd
@@ -49,7 +49,7 @@ def xte2mjd(times):
 
 def chandra2mjd(times):
     """
-    Returns a list of MJDs calculated from an input list Chandra mission times 
+    Returns a list of MJDs calculated from an input list of Chandra mission times 
         (This works for XMM too, which uses the same reference epoch.)
     """
     CHANDRAREF = 50814.0
@@ -197,6 +197,44 @@ def sim_error(prof_mod,N_counts,phases,from_template=True, debug=False):
     sys.stderr.write("Sim 100%% Complete \n")
     return np.std(sim_offsets)
 
+def correct_model(phases,prof_mod):
+    """
+    Correct the model profile to match the pulsed fraction of the data.
+        The should be used when the pulsed fraction of the source is varying
+        substantially (e.g. during a magnetar outburst).
+    """
+    import fluxtool
+
+    nbins = 32
+    harmonics = 5
+    folded = np.histogram(phases,nbins)
+    uncertainties = np.sqrt(folded[0])
+
+    # model pulsed flux from fourier components
+    model_pulsed_flux = np.sqrt(np.sum(np.abs(prof_mod.comp[1:harmonics+1])**2)*2)/prof_mod.nbins
+    model_total_flux = np.abs(prof_mod.comp[0]/prof_mod.nbins)
+    model_pulsed_fraction = model_pulsed_flux / model_total_flux
+    old_prof = prof_mod.prof_mod
+
+    total_flux = np.mean(folded[0])
+    rms_value, rms_uncertainty = fluxtool.rms_estimator(harmonics)(folded[0], uncertainties)
+    pulsed_fraction = rms_value/total_flux
+
+    if rms_value == 0:
+        sys.stderr.write('PF Correction: Measured zero pulsed flux.\n\t Low S/N observation? \n\t Not correcting for PF.\n')
+        return prof_mod.prof_mod, prof_mod.prof_mod, folded
+        
+
+    # correct zeroth fourier component to match pulsed fraction
+    prof_mod.comp[0] = prof_mod.comp[0] * model_pulsed_fraction / pulsed_fraction
+    model2_total_flux = np.abs(prof_mod.comp[0]/prof_mod.nbins)
+    model2_pulsed_fraction = model_pulsed_flux / model2_total_flux
+
+    prof_mod.recalc_profile()
+
+    #print pulsed_fraction,model_pulsed_fraction,model2_pulsed_fraction
+    return old_prof, prof_mod.prof_mod, folded
+
 
 def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=False, \
                     bg_counts=0, debug=False):
@@ -255,8 +293,7 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     return maxoff, error
 
 def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, print_offs=None, frequency=None, epoch=None, \
-               sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False):
-
+               sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False, correct_pf=False):
 
     print_timings = False # if want to print summary of runtime
 
@@ -312,9 +349,11 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
     sys.stderr.write('Measuring TOA for %s\n' % obsid)
 
     phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
-                                   par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
+                                   par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) % 1.0 
 
-    maxoff, error = calc_toa_offset(phases,prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
+    if correct_pf:
+        old_model, new_model, corr_folded = correct_model(phases,prof_mod)
+    maxoff, error = calc_toa_offset(phases,prof_mod.prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
 
     if chandra or xmm:
         midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
@@ -346,6 +385,21 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
         offs_file.close()
 
     fits.close()
+
+    
+    #double check PF correction with measuring binned model pulsed fraction
+    if correct_pf and debug:
+        plt.figure()
+        nbins = len(corr_folded[0])
+        uncertainties = np.sqrt(corr_folded[0])
+        area = integrate.trapz(corr_folded[0],dx=1.0/nbins)
+        plt.step(corr_folded[1][:-1],np.roll(corr_folded[0]/area,int(1.0-maxoff*nbins)),where='mid')
+        plt.errorbar(corr_folded[1][:-1],np.roll(corr_folded[0]/area,int(1.0-maxoff*nbins)),uncertainties/area,fmt='ko')
+        model_x = np.linspace(0,1,100)
+        plt.plot(model_x,old_model(model_x),label='uncorrected')
+        plt.plot(model_x,new_model(model_x),label='corrected')
+        plt.legend()
+        plt.show()
 
     if print_timings:
         global calcprobtime
