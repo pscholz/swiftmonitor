@@ -6,7 +6,7 @@ import sys
 import os.path
 import psr_utils
 from psr_constants import SECPERDAY
-from swiftmonitor.utils import randomvariate, events_from_binned_profile, fits2times
+from swiftmonitor.utils import randomvariate, events_from_binned_profile, fits2times, energy2chan
 import time
 
 sys.setrecursionlimit(100000)
@@ -262,28 +262,31 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     
     return maxoff, error
 
-def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, print_offs=None, frequency=None, epoch=None, \
+def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequency=None, epoch=None, \
                sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False, correct_pf=False):
 
     print_timings = False # if want to print summary of runtime
 
     fits = pyfits.open(fits_fn)
-    data = fits[1].data
-
-    if (Emin and Emax):
-        PI_min = int(Emin*100)
-        PI_max = int(Emax*100)
-        swift_t = data[(data['PI'] < PI_max) & (data['PI'] > PI_min)]['Time']
-    elif Emin:
-        PI_min = int(Emin*100)
-        swift_t = data[data['PI'] > PI_min]['Time']
-    elif Emax:
-        PI_max = int(Emax*100)
-        swift_t = data[data['PI'] < PI_max]['Time']
+    if scope!='xte':
+      Echans = fits[1].data['PI']
     else:
-        swift_t = data['Time']
+      Echans = fits[1].data['PHA']
+    t=fits2times(fits_fn)
+    if (Emin and Emax):
+        PI_min = energy2chan(Emin, scope)
+        PI_max = energy2chan(Emax, scope)
+        t = t[(Echans < PI_max) & (Echans > PI_min)]
+    elif Emin:
+        PI_min = energy2chan(Emin, scope)
+        t = t[(Echans > PI_min)]
+    elif Emax:
+        PI_max = energy2chan(Emax, scope)
+        t = t[(Echans < PI_max)]
+    else:
+        print('No Energy Filter')
 
-    if not chandra:
+    if scope != 'chandra':
         exposure = fits[0].header['EXPOSURE']
 
     try:
@@ -298,8 +301,6 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
         bg_counts = int(bg_fits[1].header['NAXIS2'] * bg_scale)
         print 'BG Counts:',bg_counts
         bg_fits.close()
-
-    t=fits2times(fits_fn)
     if frequency and epoch:
         par = lambda: None
         par.epoch = epoch
@@ -327,6 +328,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
 
     toaf = t0f + maxoff*p_mid / SECPERDAY
     newdays = int(np.floor(toaf))
+    
  
     if tempo2:
         psr_utils.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
