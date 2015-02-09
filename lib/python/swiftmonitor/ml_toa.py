@@ -392,7 +392,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
         plt.figure()
         nbins = len(corr_folded[0])
         uncertainties = np.sqrt(corr_folded[0])
-        area = integrate.trapz(corr_folded[0],dx=1.0/nbins)
+        area = np.sum(corr_folded[0],dtype='float')/nbins
         plt.step(corr_folded[1][:-1],np.roll(corr_folded[0]/area,int(1.0-maxoff*nbins)),where='mid')
         plt.errorbar(corr_folded[1][:-1],np.roll(corr_folded[0]/area,int(1.0-maxoff*nbins)),uncertainties/area,fmt='ko')
         model_x = np.linspace(0,1,100)
