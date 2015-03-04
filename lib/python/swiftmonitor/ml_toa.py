@@ -6,7 +6,7 @@ import sys
 import os.path
 import psr_utils
 from psr_constants import SECPERDAY
-from swiftmonitor.utils import randomvariate, events_from_binned_profile
+from swiftmonitor.utils import randomvariate, events_from_binned_profile, fits2times, energy2chan
 import time
 
 sys.setrecursionlimit(100000)
@@ -26,37 +26,7 @@ def logsumexp(array):
         return np.logaddexp(array[0],array[1])
     else:
         return np.logaddexp(array[0],logsumexp(array[1:]))
-
-def sw2mjd(times):
-    """
-    Returns a list of MJDs calculated from an input list of Swift mission times 
-    """
-    SWREFI = 51910.0 # integer part of Swift reference epoch in mjd
-    SWREFF = 7.4287037E-4 # fractional part of Swift reference epoch in mjd
-
-    mjds = SWREFI + SWREFF + times/86400.0
-    return mjds
-
-def xte2mjd(times):
-    """
-    Returns a list of MJDs calculated from an input list of XTE mission times 
-    """
-    XTEREFI = 49353.0 # integer part of XTE reference epoch in mjd
-    XTEREFF = 0.000696574074 # fractional part of XTE reference epoch in mjd
-
-    mjds = XTEREFI + XTEREFF + times/86400.0
-    return mjds
-
-def chandra2mjd(times):
-    """
-    Returns a list of MJDs calculated from an input list of Chandra mission times 
-        (This works for XMM too, which uses the same reference epoch.)
-    """
-    CHANDRAREF = 50814.0
-
-    mjds = CHANDRAREF + times/86400.0
-    return mjds
-
+        
 def calc_prob(phases, offset, prof_mod):
     """
     Calculates the probability of an offset given a profile model and a list of phases.
@@ -292,28 +262,31 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     
     return maxoff, error
 
-def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, print_offs=None, frequency=None, epoch=None, \
+def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequency=None, epoch=None, \
                sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False, correct_pf=False):
 
     print_timings = False # if want to print summary of runtime
 
     fits = pyfits.open(fits_fn)
-    data = fits[1].data
-
-    if (Emin and Emax):
-        PI_min = int(Emin*100)
-        PI_max = int(Emax*100)
-        swift_t = data[(data['PI'] < PI_max) & (data['PI'] > PI_min)]['Time']
-    elif Emin:
-        PI_min = int(Emin*100)
-        swift_t = data[data['PI'] > PI_min]['Time']
-    elif Emax:
-        PI_max = int(Emax*100)
-        swift_t = data[data['PI'] < PI_max]['Time']
+    if scope!='xte':
+      Echans = fits[1].data['PI']
     else:
-        swift_t = data['Time']
+      Echans = fits[1].data['PHA']
+    t=fits2times(fits_fn)
+    if (Emin and Emax):
+        PI_min = energy2chan(Emin, scope)
+        PI_max = energy2chan(Emax, scope)
+        t = t[(Echans < PI_max) & (Echans > PI_min)]
+    elif Emin:
+        PI_min = energy2chan(Emin, scope)
+        t = t[(Echans > PI_min)]
+    elif Emax:
+        PI_max = energy2chan(Emax, scope)
+        t = t[(Echans < PI_max)]
+    else:
+        print('No Energy Filter')
 
-    if not chandra:
+    if scope != 'chandra':
         exposure = fits[0].header['EXPOSURE']
 
     try:
@@ -328,16 +301,6 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
         bg_counts = int(bg_fits[1].header['NAXIS2'] * bg_scale)
         print 'BG Counts:',bg_counts
         bg_fits.close()
-
-    if (chandra and xte) or (xmm and xte):
-        raise ValueError('Data can only be from one of Chandra/XMM and RXTE!')
-    elif chandra or xmm:
-        t = chandra2mjd(swift_t) # XMM and chandra use same MJDREF
-    elif xte:
-        t = xte2mjd(swift_t)
-    else:
-        t = sw2mjd(swift_t)
-
     if frequency and epoch:
         par = lambda: None
         par.epoch = epoch
@@ -354,13 +317,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
     if correct_pf:
         old_model, new_model, corr_folded = correct_model(phases,prof_mod)
     maxoff, error = calc_toa_offset(phases,prof_mod.prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
-
-    if chandra or xmm:
-        midtime = ( chandra2mjd(fits[0].header['TSTART']) + chandra2mjd(fits[0].header['TSTOP']) ) / 2.0
-    elif xte:
-        midtime = ( xte2mjd(fits[0].header['TSTART']) + xte2mjd(fits[0].header['TSTOP']) ) / 2.0
-    else:
-        midtime = ( sw2mjd(fits[0].header['TSTART']) + sw2mjd(fits[0].header['TSTOP']) ) / 2.0
+    midtime = (t[-1]+t[0])/2.0
     p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
                                     par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
 
@@ -371,6 +328,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, chandra=False, xmm=False, xte=False, 
 
     toaf = t0f + maxoff*p_mid / SECPERDAY
     newdays = int(np.floor(toaf))
+    
  
     if tempo2:
         psr_utils.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 

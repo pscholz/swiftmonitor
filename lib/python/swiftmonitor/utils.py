@@ -1,4 +1,47 @@
 import numpy as np
+import astropy.io.fits as pyfits
+import sys 
+def energy2chan(E, scope='swift'):
+    """Takes a given Energy or array of Energies in keV, and converts them
+       into the channel of either the 'PI' or 'PHA' fits column.
+       INPUTS: 
+              E - energy or energies to convert
+              scope - which telescope to use (default 'swift')
+       OUTPUTS:
+              chans - 'PI' or 'PHA' fits column values
+    """
+    if scope=='swift':
+        chans=E*100.0
+    elif scope=='nustar':
+        chans=(E-1.6)/0.04
+    else:
+        sys.stderr.write('Warning: scope not found, assuming channels!\n')
+        chans=E
+    return chans
+  
+
+def fits2times(evtname):
+  """Given a FITS file, this will read the reference epochs,
+     and convert MET into MJD
+     INPUTS:
+            evtname - name of FITS file to read
+     OUTPUTS:
+           t - Event arrival times in Modified Julian Dates     
+     
+  """
+  fits=pyfits.open(evtname)
+  t=fits[1].data['time']
+  t=t/86400.0
+
+  try:
+    t=t+fits[1].header['MJDREFI']+fits[1].header['MJDREFF']
+ 
+  except (KeyError):
+    t=t+fits[1].header['MJDREF'] 
+
+  return t  
+  
+
 
 def events_from_binned_profile(profile): 
   binsize = 1.0 / len(profile)
