@@ -1,6 +1,45 @@
 import numpy as np
 import astropy.io.fits as pyfits
 import sys 
+
+string_pars = ['PSR','PSRJ','EPHEM','CLK','BINARY','JUMP',\
+               'UNITS','TZRSITE','TIMEEPH','T2CMETHOD',\
+               'CORRECT_TROPOSPHERE','PLANET_SHAPIRO','DILATEFREQ',\
+               'RAJ', 'DECJ']
+
+class Par:
+    def __init__(self,name,value,error=None,fit=None):
+        self.name = name
+        self.value = value
+        self.error = error
+        self.fit = fit
+    def __repr__(self):
+        return "Name: " + self.name + " Value: " + str(self.value) + \
+               " Error: " + str(self.error) + " Fit: " + str(self.fit)
+
+def read_parfile(parfn):
+    pars = {}
+    parf = open(parfn,'r')
+    for line in parf.readlines():
+        split = line.split()
+        if split[0] == 'C': #its a comment
+            continue
+        if len(split) == 1: #has no value
+            continue
+            
+        value = split[1] if split[0] in string_pars else float(split[1])
+        
+        if len(split) == 2:
+            pars[split[0]] = Par(split[0],value)
+        elif len(split) == 3:
+            if (split[2] == '0') or (split[2] == '1'):
+                pars[split[0]] = Par(split[0],value,fit=int(split[2]))
+            else:
+                pars[split[0]] = Par(split[0],value,error=float(split[2]))
+        elif len(split) == 4:
+            pars[split[0]] = Par(split[0],value,error=float(split[3]),fit=split[2])
+    return pars
+
 def energy2chan(E, scope='swift'):
     """Takes a given Energy or array of Energies in keV, and converts them
        into the channel of either the 'PI' or 'PHA' fits column.
@@ -10,38 +49,36 @@ def energy2chan(E, scope='swift'):
        OUTPUTS:
               chans - 'PI' or 'PHA' fits column values
     """
-    if scope=='swift':
-        chans=E*100.0
-    elif scope=='nustar':
-        chans=(E-1.6)/0.04
+    if scope == 'swift':
+        chans = E * 100.0
+    elif scope == 'nustar':
+        chans = (E - 1.6) / 0.04
     else:
         sys.stderr.write('Warning: scope not found, assuming channels!\n')
-        chans=E
+        chans = E
     return chans
   
 
 def fits2times(evtname):
-  """Given a FITS file, this will read the reference epochs,
-     and convert MET into MJD
-     INPUTS:
-            evtname - name of FITS file to read
-     OUTPUTS:
-           t - Event arrival times in Modified Julian Dates     
-     
-  """
-  fits=pyfits.open(evtname)
-  t=fits[1].data['time']
-  t=t/86400.0
+    """Given a FITS file, this will read the reference epochs,
+       and convert MET into MJD
+       INPUTS:
+              evtname - name of FITS file to read
+       OUTPUTS:
+             t - Event arrival times in Modified Julian Dates     
+       
+    """
+    fits = pyfits.open(evtname)
+    t = fits[1].data['time']
+    t = t / 86400.0
 
-  try:
-    t=t+fits[1].header['MJDREFI']+fits[1].header['MJDREFF']
+    try:
+        t = t + fits[1].header['MJDREFI'] + fits[1].header['MJDREFF']
  
-  except (KeyError):
-    t=t+fits[1].header['MJDREF'] 
+    except (KeyError):
+        t = t + fits[1].header['MJDREF'] 
 
-  return t  
-  
-
+    return t  
 
 def events_from_binned_profile(profile): 
   binsize = 1.0 / len(profile)

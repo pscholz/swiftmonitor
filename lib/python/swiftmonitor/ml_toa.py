@@ -6,7 +6,7 @@ import sys
 import os.path
 import psr_utils
 from psr_constants import SECPERDAY
-from swiftmonitor.utils import randomvariate, events_from_binned_profile, fits2times, energy2chan
+import swiftmonitor.utils as smu
 import time
 
 sys.setrecursionlimit(100000)
@@ -36,37 +36,23 @@ def calc_prob(phases, offset, prof_mod):
     loglike = np.sum( np.log(probs) )
     return loglike
 
-
-def readParfile(parname):
-    """ 
-    Read a tempo .par file and output a list containing:
-       [F0,F1,F2,F3,F4,PEPOCH]
-    """
-    F = np.loadtxt(parname, dtype='S')
-    freqs = np.zeros(11)
-    epoch = 0
-
-    for line in F:
-        for i in range(0,10):
-            if line[0].startswith('F'+str(i)):
-                freqs[i] = line[1].replace('D','E')
-        if line[0].startswith('PEPOCH'):
-            epoch = line[1].replace('D','E')
-            freqs[10] = np.double(epoch)     
-    return freqs 
-
 class PSRpar:
     """
     This class contains all the relevant information for 
         extracting a TOA, which is extracted from a .par file.
-        Currently, this supports up to 4 frequncy derivatives
+        Currently, this supports up to 12 frequency derivatives
         but NO GLITCH PARAMETERS (yet).
     """
     def __init__(self,parfile):
-        A = readParfile(parfile)
-        self.epoch = A[10]
-        self.f0 = A[0]
-        self.fdots = A[1:10]
+        pars = smu.read_parfile(parfile)
+        self.epoch = pars['PEPOCH'].value
+        self.f0 = pars['F0'].value
+
+        self.fdots = np.zeros(12)
+        for i in range(12):
+            fdot_name = 'F' + str(i+1)
+            if fdot_name in pars.keys():  
+                self.fdots[i] = pars[fdot_name].value
 
     def __repr__(self):
         return repr((self.f0, self.fdots, self.epoch))    
@@ -147,10 +133,10 @@ def sim_error(prof_mod,N_counts,phases,from_template=True, debug=False):
         sys.stderr.flush()
 
         if from_template:
-            simmed_phases = randomvariate(prof_mod,N_counts) 
+            simmed_phases = smu.randomvariate(prof_mod,N_counts) 
         else:
             folded = np.random.poisson(folded)
-            simmed_phases = events_from_binned_profile(folded)
+            simmed_phases = smu.events_from_binned_profile(folded)
 
         sim_offset, sim_error = calc_toa_offset(simmed_phases,prof_mod,no_err=True)
         sim_offsets.append((sim_offset+0.5) % 1.0)
@@ -272,16 +258,16 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequ
       Echans = fits[1].data['PI']
     else:
       Echans = fits[1].data['PHA']
-    t=fits2times(fits_fn)
+    t = smu.fits2times(fits_fn)
     if (Emin and Emax):
-        PI_min = energy2chan(Emin, scope)
-        PI_max = energy2chan(Emax, scope)
+        PI_min = smu.energy2chan(Emin, scope)
+        PI_max = smu.energy2chan(Emax, scope)
         t = t[(Echans < PI_max) & (Echans > PI_min)]
     elif Emin:
-        PI_min = energy2chan(Emin, scope)
+        PI_min = smu.energy2chan(Emin, scope)
         t = t[(Echans > PI_min)]
     elif Emax:
-        PI_max = energy2chan(Emax, scope)
+        PI_max = smu.energy2chan(Emax, scope)
         t = t[(Echans < PI_max)]
     else:
         print('No Energy Filter')
@@ -308,6 +294,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequ
         par.fdots = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
     else:
         par = PSRpar(parfile)
+        
 
     sys.stderr.write('Measuring TOA for %s\n' % obsid)
 
