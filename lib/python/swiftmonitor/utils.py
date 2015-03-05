@@ -1,6 +1,7 @@
 import numpy as np
 import astropy.io.fits as pyfits
 import sys 
+import psr_utils as pu
 
 string_pars = ['PSR','PSRJ','EPHEM','CLK','BINARY','JUMP',\
                'UNITS','TZRSITE','TIMEEPH','T2CMETHOD',\
@@ -79,6 +80,30 @@ def fits2times(evtname):
         t = t + fits[1].header['MJDREF'] 
 
     return t  
+
+def fold_fits(fits_fn, par_fn,nbins=32):
+    times = fits2times(fits_fn)
+
+    return fold_times(times,par_fn,nbins=nbins)
+
+def fold_times(times,par_fn,nbins=32):
+    par = read_parfile(par_fn)
+
+    phs_args = [ times, par['PEPOCH'].value, par['F0'].value ]
+
+    for i in range(12):
+        fdot_name = 'F' + str(i+1)
+        if fdot_name in par.keys():  
+            phs_args.append(par[fdot_name].value)
+        else:
+            phs_args.append(0.0)
+
+    phases = pu.calc_phs(*phs_args) % 1
+
+    bins = np.linspace(0,1,nbins+1) # add an extra bin for np.histogram's rightmost limit
+    folded = np.histogram(phases,bins)[0]
+
+    return bins[:-1],folded
 
 def events_from_binned_profile(profile): 
   binsize = 1.0 / len(profile)
