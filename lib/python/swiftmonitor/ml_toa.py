@@ -249,7 +249,8 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     return maxoff, error
 
 def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequency=None, epoch=None, \
-               sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False, correct_pf=False):
+               sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False, \
+               correct_pf=False, split_num=None, split_orbits=False):
 
     print_timings = False # if want to print summary of runtime
 
@@ -294,57 +295,92 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequ
         par.fdots = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
     else:
         par = PSRpar(parfile)
-        
 
-    sys.stderr.write('Measuring TOA for %s\n' % obsid)
+    # split times into multiple arrays if needed
+    if split_orbits:
+        dt = t[1:] - t[:-1]
+        splits = np.where(dt > 0.0116)[0] # 1 ks in days
+        if len(splits):
+            ts = [ t[:splits[0]] ]
+            for i in range(len(splits)-1):
+                ts.append(t[splits[i]+1:splits[i+1]])
+            ts.append(t[splits[-1]+1:])
+        else:
+            ts = np.atleast_2d(t)
 
-    phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
-                                   par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) % 1.0 
+    elif split_num:
+        remainder = len(t) % split_num
+        if remainder:
+            sys.stderr.write("Warning: Number of events in %s not divisable by %d. " \
+                             "Dropping last %d events.\n" % (obsid, split_num, remainder))
+            ts = np.split(t[:-remainder],split_num)
+        else:
+            ts = np.split(t,split_num)
 
-    if correct_pf:
-        old_model, new_model, corr_folded = correct_model(phases,prof_mod)
-    maxoff, error = calc_toa_offset(phases,prof_mod.prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
-    midtime = (t[-1]+t[0])/2.0
-    p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
-                                    par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
-
-    t0 = psr_utils.calc_t0(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
-                           par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
-    t0i = int(t0)
-    t0f = t0 - t0i
-
-    toaf = t0f + maxoff*p_mid / SECPERDAY
-    newdays = int(np.floor(toaf))
-    
- 
-    if tempo2:
-        psr_utils.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
     else:
-        psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+        ts = np.atleast_2d(t)
 
-    if print_offs:
-        offs_file = open(print_offs,'a')
-        #print "\t",error*p_mid*1.0e6,"\t",exposure # this was for checking uncertainties scaling with exposure time
-        offs_file.write(fits_fn + "\t" + str(maxoff) + "\t" + str(error) + "\n")
-        #print obsid,"\tOffset:",maxoff,"+/-",error 
-        offs_file.close()
-
-    fits.close()
-
-    
-    #double check PF correction with measuring binned model pulsed fraction
-    if correct_pf and debug:
+    if len(ts) > 1 and debug:
         plt.figure()
-        nbins = len(corr_folded[0])
-        uncertainties = np.sqrt(corr_folded[0])
-        area = np.sum(corr_folded[0],dtype='float')/nbins
-        plt.step(corr_folded[1][:-1],np.roll(corr_folded[0]/area,int(1.0-maxoff*nbins)),where='mid')
-        plt.errorbar(corr_folded[1][:-1],np.roll(corr_folded[0]/area,int(1.0-maxoff*nbins)),uncertainties/area,fmt='ko')
-        model_x = np.linspace(0,1,100)
-        plt.plot(model_x,old_model(model_x),label='uncorrected')
-        plt.plot(model_x,new_model(model_x),label='corrected')
-        plt.legend()
+        for t in ts:
+            nbins = int((t[-1] - t[0]) * 8640.0)
+            hist = np.histogram(t,bins=nbins)
+            plt.plot(hist[1][:-1],hist[0],c='b')
+            plt.axvline(t[0],ls='--',c='k',lw=2)
+            plt.axvline(t[-1],ls='-',c='k',lw=2)
         plt.show()
+           
+
+    for i,t in enumerate(ts):
+        sys.stderr.write('Measuring TOA #%d for %s\n' % (i+1,obsid))
+
+        phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
+                                       par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) % 1.0 
+
+        if correct_pf:
+            old_model, new_model, corr_folded = correct_model(phases,prof_mod)
+        maxoff, error = calc_toa_offset(phases,prof_mod.prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
+        midtime = (t[-1]+t[0])/2.0
+        p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
+                                        par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
+
+        t0 = psr_utils.calc_t0(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
+                               par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
+        t0i = int(t0)
+        t0f = t0 - t0i
+
+        toaf = t0f + maxoff*p_mid / SECPERDAY
+        newdays = int(np.floor(toaf))
+        
+ 
+        if tempo2:
+            psr_utils.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+        else:
+            psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+
+        if print_offs:
+            offs_file = open(print_offs,'a')
+            #print "\t",error*p_mid*1.0e6,"\t",exposure # this was for checking uncertainties scaling with exposure time
+            offs_file.write(fits_fn + "\t" + str(maxoff) + "\t" + str(error) + "\n")
+            #print obsid,"\tOffset:",maxoff,"+/-",error 
+            offs_file.close()
+
+        fits.close()
+
+        
+        #double check PF correction with measuring binned model pulsed fraction
+        if correct_pf and debug:
+            plt.figure()
+            nbins = len(corr_folded[0])
+            uncertainties = np.sqrt(corr_folded[0])
+            area = np.sum(corr_folded[0],dtype='float')/nbins
+            plt.step(corr_folded[1][:-1],np.roll(corr_folded[0]/area,int(1.0-maxoff*nbins)),where='mid')
+            plt.errorbar(corr_folded[1][:-1],np.roll(corr_folded[0]/area,int(1.0-maxoff*nbins)),uncertainties/area,fmt='ko')
+            model_x = np.linspace(0,1,100)
+            plt.plot(model_x,old_model(model_x),label='uncorrected')
+            plt.plot(model_x,new_model(model_x),label='corrected')
+            plt.legend()
+            plt.show()
 
     if print_timings:
         global calcprobtime

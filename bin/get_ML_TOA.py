@@ -63,7 +63,7 @@ parser.add_option("--correct-pf",
 		  dest="correct_pf", action='store_true',
 		  help="Rescale the template profile to have the same pulsed " \
                        + "fraction as the observation for which the TOA is being calculated.",
-		  default=0)
+		  default=False)
 parser.add_option("--Emin",
 		  dest="emin", type='float',
 		  help="Minimum energy of events to use (works only for Swift, Nustar).",
@@ -72,6 +72,14 @@ parser.add_option("--Emax",
 		  dest="emax", type='float',
 		  help="Maximum energy of events to use (works only for Swift, Nustar).",
 		  default=None)
+parser.add_option("--Ntoas",
+		  dest="ntoas", type='int',
+		  help="Number of TOAs to extract per observation.",
+		  default=None)
+parser.add_option("--orbits",
+		  dest="orbits", action='store_true',
+		  help="Extract one TOA per orbit.",
+		  default=False)
 parser.add_option("--tempo2",
 		  dest="tempo2", action='store_true',
 		  help="Print TOA in tempo2 format.",
@@ -90,7 +98,7 @@ if options.periodogram:
     ml_toa.get_ml_toa(fitsfile, prof_mod, None, scope=options.scope, bg_counts=options.bg_counts, \
                       print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i], sim=options.sim, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
-                      debug=options.plot_dist, correct_pf=options.correct_pf)
+                      debug=options.plot_dist, correct_pf=options.correct_pf, split_orbits=options.orbits, split_num=options.ntoas)
 
 else:
   if options.list:
@@ -102,5 +110,5 @@ else:
     ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, scope=options.scope, \
                       print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
-                      debug=options.plot_dist,correct_pf=options.correct_pf)
+                      debug=options.plot_dist,correct_pf=options.correct_pf, split_orbits=options.orbits, split_num=options.ntoas)
 
