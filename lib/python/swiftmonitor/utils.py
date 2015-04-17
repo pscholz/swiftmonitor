@@ -240,7 +240,7 @@ def h_test(phases):
     Updated false alarm rate  to match Jager, Busching 2010
     """
     max_harmonic = 20
-    ev = np.reshape(events, (-1,))
+    ev = np.reshape(phases, (-1,))
     cs = np.sum(np.exp(2.j*np.pi*np.arange(1,max_harmonic+1)*ev[:,None]),axis=0)/len(ev)
     Zm2 = 2*len(ev)*np.cumsum(np.abs(cs)**2)
     Hcand = (Zm2 - 4*np.arange(1,max_harmonic+1) + 4)
@@ -248,7 +248,28 @@ def h_test(phases):
     H = Hcand[M-1]
     fpp =np.exp(-0.4*H) 
     return (H, M, fpp)
-  
+
+def h_test_obs(fits_fn, par_fn):
+    '''Given a fits file name, and a par filename, will return the H-score 
+       and false alarm probability. 
+    '''
+    par = read_parfile(par_fn)
+    times = fits2times(fits_fn)
+    phs_args = [ times, par['PEPOCH'].value, par['F0'].value ]
+
+    for i in range(12):
+        fdot_name = 'F' + str(i+1)
+        if fdot_name in par.keys():  
+            phs_args.append(par[fdot_name].value)
+        else:
+            phs_args.append(0.0)
+
+    phases = pu.calc_phs(*phs_args) % 1
+    H, M, fpp=h_test(phases)
+    
+    return (H, M, fpp)
+    
+    
 class SwiftMonError(Exception):
     """
     A generic exception to be thrown by the swiftmonitor software.
