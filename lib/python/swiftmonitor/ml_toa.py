@@ -7,6 +7,7 @@ import os.path
 import psr_utils
 from psr_constants import SECPERDAY
 import swiftmonitor.utils as smu
+from swiftmonitor import model_profile
 import time
 
 sys.setrecursionlimit(100000)
@@ -271,7 +272,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequ
         PI_max = smu.energy2chan(Emax, scope)
         t = t[(Echans < PI_max)]
     else:
-        print('No Energy Filter')
+         sys.stderr.write('No Energy Filter')
 
     if scope != 'chandra':
         exposure = fits[0].header['EXPOSURE']

@@ -19,6 +19,18 @@ parser.add_option("-c", "--cycles",
 		  dest="ncycles", type='int',
 		  help="Number of cycles of pulsar to plot. Default is 2.",
 		  default=2)
+parser.add_option("--scope",
+		  dest="scope", type='string',
+		  help="Event files are from this telescope, default swift.",
+		  default='swift')
+parser.add_option("--Emin",
+		  dest="emin", type='float',
+		  help="Minimum energy of events to use (works only for Swift, Nustar).",
+		  default=None)
+parser.add_option("--Emax",
+		  dest="emax", type='float',
+		  help="Maximum energy of events to use (works only for Swift, Nustar).",
+		  default=None)		  		  
 parser.add_option("-H", "--H-test",
       action="store_true", dest="H_test",
       help="If True, compute H-test statistic, plot best profile.")
@@ -26,10 +38,12 @@ parser.add_option("-H", "--H-test",
 (options,args) = parser.parse_args()
 
 
- 
-bins, folded = smu.fold_fits(args[0],options.parfile,nbins=options.nbins)
+phases=smu.fits2phase(args[0],options.parfile, scope=options.scope,Emin=options.emin, Emax=options.emax)
+bins = np.linspace(0,1,options.nbins+1) # add an extra bin for np.histogram's rightmost limit
+folded = np.histogram(phases,bins)[0]
+bins=bins[:-1]
 if options.H_test:
-    H, Nharm, Hfpp=smu.h_test_obs(args[0],options.parfile)
+    H, Nharm, Hfpp=smu.h_test(phases)
     prof_mod = model_profile.makeProfileModel("fourier", np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
 
 ax=plt.subplot(111)

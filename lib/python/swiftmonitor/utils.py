@@ -71,6 +71,7 @@ def fits2times(evtname):
     """
     fits = pyfits.open(evtname)
     t = fits[1].data['time']
+    t = t 
     t = t / 86400.0
 
     try:
@@ -80,6 +81,49 @@ def fits2times(evtname):
         t = t + fits[1].header['MJDREF'] 
 
     return t  
+
+def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
+    """Given a FITS file and a parfile, this will read the reference epochs,
+       and convert into phases
+       INPUTS:
+              evtname - name of FITS file to read
+       OUTPUTS:
+             phase - Pulsar phase, from 0-1.     
+       
+    """
+
+    fits = pyfits.open(fits_fn)
+    if scope!='xte':
+      Echans = fits[1].data['PI']
+    else:
+      Echans = fits[1].data['PHA']
+    t = fits2times(fits_fn)
+    if (Emin and Emax):
+        PI_min = energy2chan(Emin, scope)
+        PI_max = energy2chan(Emax, scope)
+        t = t[(Echans < PI_max) & (Echans > PI_min)]
+    elif Emin:
+        PI_min = senergy2chan(Emin, scope)
+        t = t[(Echans > PI_min)]
+    elif Emax:
+        PI_max = energy2chan(Emax, scope)
+        t = t[(Echans < PI_max)]
+    else:
+         sys.stderr.write('No Energy Filter')
+    par = read_parfile(par_fn)
+
+    phs_args = [ t, par['PEPOCH'].value, par['F0'].value ]
+
+    for i in range(12):
+        fdot_name = 'F' + str(i+1)
+        if fdot_name in par.keys():  
+            phs_args.append(par[fdot_name].value)
+        else:
+            phs_args.append(0.0)
+
+    phases = pu.calc_phs(*phs_args) % 1
+    return phases
+
 
 def fold_fits(fits_fn, par_fn,nbins=32):
     times = fits2times(fits_fn)
@@ -106,11 +150,11 @@ def fold_times(times,par_fn,nbins=32):
     return bins[:-1],folded
 
 def events_from_binned_profile(profile): 
-  binsize = 1.0 / len(profile)
-  phases = np.array([])
-  for i,counts in enumerate(profile):
-    phases = np.append(phases, np.random.rand(counts)*binsize + i*binsize) 
-  return phases
+    binsize = 1.0 / len(profile)
+    phases = np.array([])
+    for i,counts in enumerate(profile):
+      phases = np.append(phases, np.random.rand(counts)*binsize + i*binsize) 
+    return phases
 
 def randomvariate(pdf,n=1000,xmin=0,xmax=1,zero_min=True):
   """ Generate random numbers from an arbitrary distribution using the rejection
@@ -255,8 +299,9 @@ def h_test_obs(fits_fn, par_fn):
     '''
     par = read_parfile(par_fn)
     times = fits2times(fits_fn)
+    fits=pyfits.open(fits_fn)
     phs_args = [ times, par['PEPOCH'].value, par['F0'].value ]
-
+    
     for i in range(12):
         fdot_name = 'F' + str(i+1)
         if fdot_name in par.keys():  
