@@ -34,6 +34,10 @@ parser.add_option("--Emax",
 parser.add_option("-H", "--H-test",
       action="store_true", dest="H_test",
       help="If True, compute H-test statistic, plot best profile.")
+parser.add_option("-S", "--save",
+      dest="save", type='string',
+      help="If given, save output")      
+      
  
 (options,args) = parser.parse_args()
 
@@ -61,5 +65,7 @@ if options.H_test:
     plt.text(0.7, 0.9, '$P_{fa}$='+str(Hfpp), transform = ax.transAxes )
 plt.xlabel('Phase')
 plt.ylabel('Counts')
-
-plt.show()
+if options.save:
+    plt.savefig(options.save)
+else:  
+    plt.show()
