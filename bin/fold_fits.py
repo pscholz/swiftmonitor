@@ -18,10 +18,22 @@ parser.add_option("-c", "--cycles",
 		  dest="ncycles", type='int',
 		  help="Number of cycles of pulsar to plot. Default is 2.",
 		  default=2)
+parser.add_option("--scope",
+		  dest="scope", type='string',
+		  help="Event files are from this telescope, default swift.",
+		  default='swift')
+parser.add_option("--Emin",
+		  dest="emin", type='float',
+		  help="Minimum energy of events to use (works only for Swift, Nustar).",
+		  default=None)
+parser.add_option("--Emax",
+		  dest="emax", type='float',
+		  help="Maximum energy of events to use (works only for Swift, Nustar).",
+		  default=None)
  
 (options,args) = parser.parse_args()
 
-bins, folded = smu.fold_fits(args[0],options.parfile,nbins=options.nbins)
+bins, folded = smu.fold_fits(args[0],options.parfile,nbins=options.nbins,scope=options.scope,Emin=options.emin,Emax=options.emax)
 
 plot_bins = np.array([])
 for i in range(options.ncycles):

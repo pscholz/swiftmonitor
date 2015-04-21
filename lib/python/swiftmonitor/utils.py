@@ -79,11 +79,32 @@ def fits2times(evtname):
     except (KeyError):
         t = t + fits[1].header['MJDREF'] 
 
+    fits.close()
     return t  
 
-def fold_fits(fits_fn, par_fn,nbins=32):
+def fold_fits(fits_fn, par_fn,nbins=32, scope='swift', Emin=None, Emax=None):
     times = fits2times(fits_fn)
+    fits = pyfits.open(fits_fn)
 
+    if scope!='xte':
+      Echans = fits[1].data['PI']
+    else:
+      Echans = fits[1].data['PHA']
+
+    if (Emin and Emax):
+        PI_min = energy2chan(Emin, scope)
+        PI_max = energy2chan(Emax, scope)
+        times = times[(Echans < PI_max) & (Echans > PI_min)]
+    elif Emin:
+        PI_min = energy2chan(Emin, scope)
+        times = times[(Echans > PI_min)]
+    elif Emax:
+        PI_max = energy2chan(Emax, scope)
+        times = times[(Echans < PI_max)]
+    else:
+        sys.stderr.write('No Energy Filter\n')
+
+    fits.close()
     return fold_times(times,par_fn,nbins=nbins)
 
 def fold_times(times,par_fn,nbins=32):
