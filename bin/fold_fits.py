@@ -48,20 +48,22 @@ if options.list:
     EVTs = np.loadtxt(options.list, dtype='S')#.T[0]
     phases = np.zeros(0)
     for evt in EVTs:                     
-      phases = np.append(phases,smu.fits2phase(evt,options.parfile, 
-                       scope=options.scope, Emin=options.emin, Emax=options.emax))
+        phases = np.append(phases,smu.fits2phase(evt,options.parfile, 
+                           scope=options.scope, Emin=options.emin, 
+                           Emax=options.emax))
 
 else:                      
     phases = smu.fits2phase(args[0],options.parfile, scope=options.scope,
-                          Emin=options.emin, Emax=options.emax)
+                            Emin=options.emin, Emax=options.emax)
 bins, folded = smu.fold_phases(phases,nbins=options.nbins)
 
 if options.H_test:
     H, Nharm, Hfpp=smu.h_test(phases)
-    prof_mod = model_profile.makeProfileModel("fourier", np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
+    prof_mod = model_profile.makeProfileModel("fourier",
+               np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
 
 ax=plt.subplot(111)
-plt.text(0.95, 0.95, "$P_{fa}$=%.2E" % Hfpp, horizontalalignment="right", \
+plt.text(0.95, 0.95, "$P_{fa}$=%.2E" % Hfpp, horizontalalignment="right",
              transform = plt.gca().transAxes)
      
 plot_bins = np.array([])
@@ -70,8 +72,8 @@ for i in range(options.ncycles):
 
 plot_fold = np.tile(folded,options.ncycles) 
 
-plt.step(plot_bins,plot_fold,where='mid',c='k')
-plt.errorbar(plot_bins,plot_fold,np.sqrt(plot_fold),fmt='ko')
+plt.step(plot_bins,plot_fold,where='post',c='k')
+plt.errorbar(plot_bins+0.5/options.nbins,plot_fold,np.sqrt(plot_fold),fmt='ko')
 
 if options.H_test:
     H, Nharm, Hfpp=smu.h_test(phases)
