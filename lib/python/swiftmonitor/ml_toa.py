@@ -271,7 +271,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequ
         PI_max = smu.energy2chan(Emax, scope)
         t = t[(Echans < PI_max)]
     else:
-        print('No Energy Filter')
+        sys.stderr.write('No Energy Filter\n')
 
     if scope != 'chandra':
         exposure = fits[0].header['EXPOSURE']
