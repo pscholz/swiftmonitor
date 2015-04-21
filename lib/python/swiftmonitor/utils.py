@@ -38,7 +38,8 @@ def read_parfile(parfn):
             else:
                 pars[split[0]] = Par(split[0],value,error=float(split[2]))
         elif len(split) == 4:
-            pars[split[0]] = Par(split[0],value,error=float(split[3]),fit=split[2])
+            pars[split[0]] = Par(split[0],value,error=float(split[3]), \
+                                 fit=split[2])
     return pars
 
 def energy2chan(E, scope='swift'):
@@ -80,15 +81,16 @@ def fits2times(evtname):
     except (KeyError):
         t = t + fits[1].header['MJDREF'] 
 
+    fits.close()
     return t  
 
 def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
     """Given a FITS file and a parfile, this will read the reference epochs,
        and convert into phases
        INPUTS:
-              evtname - name of FITS file to read
+           fits_fn - name of FITS file to read
        OUTPUTS:
-             phase - Pulsar phase, from 0-1.     
+           phase - Pulsar phase, from 0-1.     
        
     """
 
@@ -109,7 +111,7 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
         PI_max = energy2chan(Emax, scope)
         t = t[(Echans < PI_max)]
     else:
-         sys.stderr.write('No Energy Filter')
+        sys.stderr.write('No Energy Filter\n')
     par = read_parfile(par_fn)
 
     phs_args = [ t, par['PEPOCH'].value, par['F0'].value ]
@@ -125,26 +127,32 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
     return phases
 
 
-def fold_fits(fits_fn, par_fn,nbins=32):
-    times = fits2times(fits_fn)
+def fold_fits(fits_fn, par_fn, nbins=32, scope='swift', Emin=None, Emax=None):
+    """Given a FITS file and a parfile, this will convert the events to phases
+       and fold them, returning a histogram of folded phases.
+       INPUTS:
+           fits_fn - name of FITS file to read
+       OUTPUTS:
+           bins - the left bin edges for each bin
+           folded - the number of events in each bin  
+       
+    """
+    phases = fits2phase(fits_fn, par_fn, scope=scope, Emin=Emin, Emax=Emax)
 
-    return fold_times(times,par_fn,nbins=nbins)
+    return fold_phases(phases, nbins=nbins)
 
-def fold_times(times,par_fn,nbins=32):
-    par = read_parfile(par_fn)
+def fold_phases(phases, nbins=32):
+    """Given list of phase (e.g. from fits2phases), this will bin them 
+       into a histogram with nbins between 0 and 1.
+       INPUTS:
+           phases - a list or array of phases
+       OUTPUTS:
+           bins - the left bin edges for each bin
+           folded - the number of events in each bin  
+    """
 
-    phs_args = [ times, par['PEPOCH'].value, par['F0'].value ]
-
-    for i in range(12):
-        fdot_name = 'F' + str(i+1)
-        if fdot_name in par.keys():  
-            phs_args.append(par[fdot_name].value)
-        else:
-            phs_args.append(0.0)
-
-    phases = pu.calc_phs(*phs_args) % 1
-
-    bins = np.linspace(0,1,nbins+1) # add an extra bin for np.histogram's rightmost limit
+    bins = np.linspace(0,1,nbins+1) # add an extra bin for np.histogram's 
+                                    # rightmost limit
     folded = np.histogram(phases,bins)[0]
 
     return bins[:-1],folded
