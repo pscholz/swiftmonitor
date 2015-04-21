@@ -93,7 +93,7 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
     """
 
     fits = pyfits.open(fits_fn)
-    if scope!='xte':
+    if scope != 'xte':
       Echans = fits[1].data['PI']
     else:
       Echans = fits[1].data['PHA']
@@ -103,7 +103,7 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
         PI_max = energy2chan(Emax, scope)
         t = t[(Echans < PI_max) & (Echans > PI_min)]
     elif Emin:
-        PI_min = senergy2chan(Emin, scope)
+        PI_min = energy2chan(Emin, scope)
         t = t[(Echans > PI_min)]
     elif Emax:
         PI_max = energy2chan(Emax, scope)

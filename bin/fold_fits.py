@@ -8,41 +8,52 @@ from optparse import OptionParser
 
 parser = OptionParser("Usage: %prog [options] fitsfile",version="%prog 1.0")
 parser.add_option("-p", "--par",
-		  dest="parfile", type='string',
-		  help="Name of par file with pulsar ephemeris.",
-		  default=None)
+    dest="parfile", type='string',
+    help="Name of par file with pulsar ephemeris.",
+    default=None)
 parser.add_option("-n", "--nbins",
-		  dest="nbins", type='int',
-		  help="Number of bins to fold. Default is 16.",
-		  default=16)
+    dest="nbins", type='int',
+    help="Number of bins to fold. Default is 16.",
+    default=16)
 parser.add_option("-c", "--cycles",
-		  dest="ncycles", type='int',
-		  help="Number of cycles of pulsar to plot. Default is 2.",
-		  default=2)
+    dest="ncycles", type='int',
+    help="Number of cycles of pulsar to plot. Default is 2.",
+    default=2)
 parser.add_option("--scope",
-		  dest="scope", type='string',
-		  help="Event files are from this telescope, default swift.",
-		  default='swift')
+    dest="scope", type='string',
+    help="Event files are from this telescope, default swift.",
+    default='swift')
 parser.add_option("--Emin",
-		  dest="emin", type='float',
-		  help="Minimum energy of events to use (works only for Swift, Nustar).",
-		  default=None)
+    dest="emin", type='float',
+    help="Minimum energy of events to use (works only for Swift, Nustar).",
+    default=None)
 parser.add_option("--Emax",
-		  dest="emax", type='float',
-		  help="Maximum energy of events to use (works only for Swift, Nustar).",
-		  default=None)		  		  
+    dest="emax", type='float',
+    help="Maximum energy of events to use (works only for Swift, Nustar).",
+     default=None)		  		  
 parser.add_option("-H", "--H-test",
-      action="store_true", dest="H_test",
-      help="If True, compute H-test statistic, plot best profile.")
+    action="store_true", dest="H_test",
+    help="If True, compute H-test statistic, plot best profile.")
 parser.add_option("-S", "--save",
-      dest="save", type='string',
-      help="If given, save output")      
-      
+    dest="save", type='string',
+    help="If given, save output")      
+parser.add_option("-l", "--list",
+    dest="list", type='string',
+    help="File with list of event files to get events from.",
+		  default=None)      
  
 (options,args) = parser.parse_args()
 
+if options.list:
+    EVTs = np.loadtxt(options.list, dtype='S')#.T[0]
+    phases = np.zeros(0)
+    for evt in EVTs:                     
+      phases=np.append(phases,smu.fits2phase(evt,options.parfile, scope=options.scope,
+                      Emin=options.emin, Emax=options.emax))
 
-phases=smu.fits2phase(args[0],options.parfile, scope=options.scope,Emin=options.emin, Emax=options.emax)
+else:                      
+    phases=smu.fits2phase(args[0],options.parfile, scope=options.scope,
+                      Emin=options.emin, Emax=options.emax)
 bins = np.linspace(0,1,options.nbins+1) # add an extra bin for np.histogram's rightmost limit
 folded = np.histogram(phases,bins)[0]
 bins=bins[:-1]
