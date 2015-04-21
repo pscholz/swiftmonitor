@@ -7,6 +7,7 @@ import os.path
 import psr_utils
 from psr_constants import SECPERDAY
 import swiftmonitor.utils as smu
+from swiftmonitor import model_profile
 import time
 
 sys.setrecursionlimit(100000)

@@ -71,6 +71,7 @@ def fits2times(evtname):
     """
     fits = pyfits.open(evtname)
     t = fits[1].data['time']
+    t = t 
     t = t / 86400.0
 
     try:
@@ -81,6 +82,49 @@ def fits2times(evtname):
 
     fits.close()
     return t  
+
+def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
+    """Given a FITS file and a parfile, this will read the reference epochs,
+       and convert into phases
+       INPUTS:
+              evtname - name of FITS file to read
+       OUTPUTS:
+             phase - Pulsar phase, from 0-1.     
+       
+    """
+
+    fits = pyfits.open(fits_fn)
+    if scope!='xte':
+      Echans = fits[1].data['PI']
+    else:
+      Echans = fits[1].data['PHA']
+    t = fits2times(fits_fn)
+    if (Emin and Emax):
+        PI_min = energy2chan(Emin, scope)
+        PI_max = energy2chan(Emax, scope)
+        t = t[(Echans < PI_max) & (Echans > PI_min)]
+    elif Emin:
+        PI_min = senergy2chan(Emin, scope)
+        t = t[(Echans > PI_min)]
+    elif Emax:
+        PI_max = energy2chan(Emax, scope)
+        t = t[(Echans < PI_max)]
+    else:
+         sys.stderr.write('No Energy Filter')
+    par = read_parfile(par_fn)
+
+    phs_args = [ t, par['PEPOCH'].value, par['F0'].value ]
+
+    for i in range(12):
+        fdot_name = 'F' + str(i+1)
+        if fdot_name in par.keys():  
+            phs_args.append(par[fdot_name].value)
+        else:
+            phs_args.append(0.0)
+
+    phases = pu.calc_phs(*phs_args) % 1
+    return phases
+
 
 def fold_fits(fits_fn, par_fn,nbins=32, scope='swift', Emin=None, Emax=None):
     times = fits2times(fits_fn)
@@ -127,11 +171,11 @@ def fold_times(times,par_fn,nbins=32):
     return bins[:-1],folded
 
 def events_from_binned_profile(profile): 
-  binsize = 1.0 / len(profile)
-  phases = np.array([])
-  for i,counts in enumerate(profile):
-    phases = np.append(phases, np.random.rand(counts)*binsize + i*binsize) 
-  return phases
+    binsize = 1.0 / len(profile)
+    phases = np.array([])
+    for i,counts in enumerate(profile):
+      phases = np.append(phases, np.random.rand(counts)*binsize + i*binsize) 
+    return phases
 
 def randomvariate(pdf,n=1000,xmin=0,xmax=1,zero_min=True):
   """ Generate random numbers from an arbitrary distribution using the rejection
@@ -218,6 +262,80 @@ def randomvariate_old(pdf,n=1000,xmin=0,xmax=1):
     
   return ran,ntrial  
 
+def h_test(phases):
+    """Apply the H test for uniformity on [0,1).
+
+    The H test is an extension of the Z_m^2 or Rayleigh tests for
+    uniformity on the circle. These tests estimate the Fourier coefficients
+    of the distribution and compare them with the values predicted for
+    a uniform distribution, but they require the user to specify the number
+    of harmonics to use. The H test automatically selects the number of
+    harmonics to use based on the data. The returned statistic, H, has mean
+    and standard deviation approximately 2.51, but its significance should
+    be evaluated with the routine h_fpp. This is done automatically in this
+    routine.
+
+    Arguments
+    ---------
+
+    events : array-like
+        events should consist of an array of values to be interpreted as
+        values modulo 1. These events will be tested for statistically
+        significant deviations from uniformity.
+
+    Returns
+    -------
+
+    H : float
+        The raw score. Larger numbers indicate more non-uniformity.
+    M : int
+        The number of harmonics that give the most significant deviation
+        from uniformity.
+    fpp : float
+        The probability of an H score this large arising from sampling a
+        uniform distribution.
+
+    Reference
+    ---------
+
+    de Jager, O. C., Swanepoel, J. W. H, and Raubenheimer, B. C., "A
+    powerful test for weak periodic signals of unknown light curve shape
+    in sparse data", Astron. Astrophys. 221, 180-190, 1989.
+    
+    Updated false alarm rate  to match Jager, Busching 2010
+    """
+    max_harmonic = 20
+    ev = np.reshape(phases, (-1,))
+    cs = np.sum(np.exp(2.j*np.pi*np.arange(1,max_harmonic+1)*ev[:,None]),axis=0)/len(ev)
+    Zm2 = 2*len(ev)*np.cumsum(np.abs(cs)**2)
+    Hcand = (Zm2 - 4*np.arange(1,max_harmonic+1) + 4)
+    M = np.argmax(Hcand)+1
+    H = Hcand[M-1]
+    fpp =np.exp(-0.4*H) 
+    return (H, M, fpp)
+
+def h_test_obs(fits_fn, par_fn):
+    '''Given a fits file name, and a par filename, will return the H-score 
+       and false alarm probability. 
+    '''
+    par = read_parfile(par_fn)
+    times = fits2times(fits_fn)
+    fits=pyfits.open(fits_fn)
+    phs_args = [ times, par['PEPOCH'].value, par['F0'].value ]
+    
+    for i in range(12):
+        fdot_name = 'F' + str(i+1)
+        if fdot_name in par.keys():  
+            phs_args.append(par[fdot_name].value)
+        else:
+            phs_args.append(0.0)
+
+    phases = pu.calc_phs(*phs_args) % 1
+    H, M, fpp=h_test(phases)
+    
+    return (H, M, fpp)
+    
+    
 class SwiftMonError(Exception):
     """
     A generic exception to be thrown by the swiftmonitor software.
