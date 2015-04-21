@@ -25,11 +25,13 @@ parser.add_option("--scope",
 		  default='swift')
 parser.add_option("--Emin",
 		  dest="emin", type='float',
-		  help="Minimum energy of events to use (works only for Swift, Nustar).",
+		  help="Minimum energy of events to use (works only for Swift, \
+                        Nustar).",
 		  default=None)
 parser.add_option("--Emax",
 		  dest="emax", type='float',
-		  help="Maximum energy of events to use (works only for Swift, Nustar).",
+		  help="Maximum energy of events to use (works only for Swift, \
+                        Nustar).",
 		  default=None)		  		  
 parser.add_option("-H", "--H-test",
                   action="store_true", dest="H_test",
@@ -56,10 +58,12 @@ plt.errorbar(plot_bins,plot_fold,np.sqrt(plot_fold),fmt='ko')
 
 if options.H_test:
     H, Nharm, Hfpp=smu.h_test(phases)
-    prof_mod = model_profile.makeProfileModel("fourier", np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
+    prof_mod = model_profile.makeProfileModel("fourier", \
+               np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
     x = np.linspace(0, options.ncycles, 5*options.ncycles*options.nbins)
     plt.plot(x,prof_mod.prof_mod(x)*np.mean(folded), lw=2, color='r') 
-    plt.text(0.7, 0.9, '$P_{fa}$='+str(Hfpp), transform = plt.gca().transAxes )
+    plt.text(0.95, 0.95, "$P_{fa}$=%.2E" % Hfpp, horizontalalignment="right", \
+             transform = plt.gca().transAxes)
 
 plt.xlabel('Phase')
 plt.ylabel('Counts')
