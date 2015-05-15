@@ -90,7 +90,8 @@ parser.add_option("--tempo2",
 profile = np.loadtxt(options.profile)
 
 prof_mod = model_profile.makeProfileModel(options.model, profile, nharm=options.num_harmonics)
-
+if options.tempo2:
+    print(" FORMAT 1\n")
 if options.periodogram:
   flist = np.loadtxt(options.periodogram,usecols=[0],dtype='S')
   epoch, frequency = np.loadtxt(options.periodogram,usecols=[1,2],dtype='float',unpack=True)
