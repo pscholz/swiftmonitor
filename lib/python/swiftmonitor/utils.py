@@ -184,7 +184,6 @@ def events_from_binned_profile(profile):
 def randomvariate(pdf,n=1000,xmin=0,xmax=1,zero_min=True):
   """ Generate random numbers from an arbitrary distribution using the rejection
   method. See Bevington pg. 83.
-
     Inputs: pdf - probability distribution function from which you want to generate random numbers
             n - number of random values to output
             xmin, xmax  - range of random numbers
@@ -268,7 +267,6 @@ def randomvariate_old(pdf,n=1000,xmin=0,xmax=1):
 
 def h_test(phases):
     """Apply the H test for uniformity on [0,1).
-
     The H test is an extension of the Z_m^2 or Rayleigh tests for
     uniformity on the circle. These tests estimate the Fourier coefficients
     of the distribution and compare them with the values predicted for
@@ -278,18 +276,14 @@ def h_test(phases):
     and standard deviation approximately 2.51, but its significance should
     be evaluated with the routine h_fpp. This is done automatically in this
     routine.
-
     Arguments
     ---------
-
     events : array-like
         events should consist of an array of values to be interpreted as
         values modulo 1. These events will be tested for statistically
         significant deviations from uniformity.
-
     Returns
     -------
-
     H : float
         The raw score. Larger numbers indicate more non-uniformity.
     M : int
@@ -298,10 +292,8 @@ def h_test(phases):
     fpp : float
         The probability of an H score this large arising from sampling a
         uniform distribution.
-
     Reference
     ---------
-
     de Jager, O. C., Swanepoel, J. W. H, and Raubenheimer, B. C., "A
     powerful test for weak periodic signals of unknown light curve shape
     in sparse data", Astron. Astrophys. 221, 180-190, 1989.
