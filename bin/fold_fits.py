@@ -34,13 +34,16 @@ parser.add_option("--Emax",
 parser.add_option("-H", "--H-test",
     action="store_true", dest="H_test",
     help="If True, compute H-test statistic, plot best profile.")
-parser.add_option("-S", "--save",
-    dest="save", type='string',
-    help="If given, save output")      
+parser.add_option("-S", "--save-plot",
+    dest="plot_fn", type='string',
+    help="Save plot to filename given.")      
+parser.add_option("-o", "--output",
+    dest="prof_fn", type='string',
+    help="Save profile in ascii format to filename given.")      
 parser.add_option("-l", "--list",
     dest="list", type='string',
     help="File with list of event files to get events from.",
-		  default=None)      
+    default=None)      
  
 (options,args) = parser.parse_args()
 
@@ -63,8 +66,6 @@ if options.H_test:
                np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
 
 ax=plt.subplot(111)
-plt.text(0.95, 0.95, "$P_{fa}$=%.2E" % Hfpp, horizontalalignment="right",
-             transform = plt.gca().transAxes)
      
 plot_bins = np.array([])
 for i in range(options.ncycles):
@@ -81,13 +82,18 @@ if options.H_test:
                np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
     x = np.linspace(0, options.ncycles, 5*options.ncycles*options.nbins)
     plt.plot(x,prof_mod.prof_mod(x)*np.mean(folded), lw=2, color='r') 
-    plt.text(0.95, 0.95, "$P_{fa}$=%.2E" % Hfpp, horizontalalignment="right", \
+    plt.text(0.99, 0.99, "$N_{harm}$=%d\n$P_{fa}$=%.2E" % (Nharm, Hfpp), 
+             horizontalalignment="right", verticalalignment="top",
              transform = plt.gca().transAxes)
 
 plt.xlabel('Phase')
 plt.ylabel('Counts')
 
-if options.save:
-    plt.savefig(options.save)
+if options.prof_fn:
+    out_array = np.array([np.arange(len(folded)),folded,np.sqrt(folded)]).T
+    np.savetxt(options.prof_fn,out_array,fmt="%-4d%6d%8.2f")
+
+if options.plot_fn:
+    plt.savefig(options.plot_fn)
 else:  
     plt.show()
