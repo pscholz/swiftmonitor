@@ -256,10 +256,13 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequ
     print_timings = False # if want to print summary of runtime
 
     fits = pyfits.open(fits_fn)
-    if scope!='xte':
+    if "PI" in fits[1].columns.names:
       Echans = fits[1].data['PI']
-    else:
+    elif "PHA" in fits[1].columns.names:
       Echans = fits[1].data['PHA']
+    else:
+        sys.stderr.write('No Energy Column\n')
+        Emin, Emax = None, None
     t = smu.fits2times(fits_fn)
     if (Emin and Emax):
         PI_min = smu.energy2chan(Emin, scope)
