@@ -79,7 +79,8 @@ def get_error(offsets, prob, del_off, debug=False):
     sigma = (b - a) / 2.0 * del_off
 
     if debug:
-        plt.errorbar(offsets[np.argmax(prob_centered)],0.5*max(prob_centered), xerr=sigma,fmt='o')
+        plt.errorbar(offsets[np.argmax(prob_centered)],0.5*max(prob_centered),
+                     xerr=sigma,fmt='o')
         plt.plot(offsets, prob_centered)
         plt.axvline(0.5,ls='dotted')
         plt.show()
@@ -101,7 +102,8 @@ def get_error_gaussfit(offsets, prob, del_off, debug=False):
     sigma = output[0]
     
     if debug:
-        plt.errorbar(offsets[np.argmax(prob_centered)],0.5*max(prob_centered), xerr=sigma,fmt='o')
+        plt.errorbar(offsets[np.argmax(prob_centered)],0.5*max(prob_centered),
+                     xerr=sigma,fmt='o')
         plt.plot(offsets, prob_centered)
         plt.plot(offsets, stats.norm.pdf(offsets, loc=0.5, scale=output[0]), "r--")
         plt.axvline(0.5,ls='dotted')
@@ -193,8 +195,8 @@ def correct_model(phases,prof_mod):
     return old_prof, prof_mod.prof_mod, folded
 
 
-def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=False, \
-                    bg_counts=0, debug=False):
+def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, 
+                    gauss_err=False, bg_counts=0, debug=False):
     """
     Calculate an offset between the observation pulse profile and the template pulse profile.
        This is done using the raw events (as phases) and a continuous model of the template
@@ -238,7 +240,8 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
 
     if sim_err:
         maxoff = offsets[np.argmax(probs)]
-        error = sim_error(prof_mod,len(phases)-bg_counts,phases,from_template=True, debug=debug) 
+        error = sim_error(prof_mod,len(phases)-bg_counts,phases,
+                          from_template=True, debug=debug) 
     elif no_err:
         maxoff = offsets[np.argmax(probs)]
         error = None
@@ -249,8 +252,9 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, gauss_err=Fal
     
     return maxoff, error
 
-def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequency=None, epoch=None, \
-               sim=False, bg_counts=0, Emin=None, Emax=None, gauss_err=False, tempo2=False, debug=False, \
+def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, 
+               frequency=None, epoch=None,  sim=False, bg_counts=0, Emin=None, 
+               Emax=None, gauss_err=False, tempo2=False, debug=False, 
                correct_pf=False, split_num=None, split_orbits=False):
 
     print_timings = False # if want to print summary of runtime
@@ -335,8 +339,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, frequ
     for i,t in enumerate(ts):
         sys.stderr.write('Measuring TOA #%d for %s\n' % (i+1,obsid))
 
-        phases = psr_utils.calc_phs(t, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
-                                       par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) % 1.0 
+        phases = smu.times2phases(t, parfile)
 
         if correct_pf:
             old_model, new_model, corr_folded = correct_model(phases,prof_mod)
