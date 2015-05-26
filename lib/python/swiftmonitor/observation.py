@@ -545,10 +545,10 @@ class Observation:
     self.spectrum = "%s_source.pha.grp" % (outroot)
     self.bg_spectrum = "%s_back.pha" % (outroot)
 
-  def extract_spectrum_seporb(self,infile=None,chan_low=None,chan_high=None,energy_low=None,energy_high=None,grouping=20,\
-                              grade=None, badcol_tol=0.0):
+  def extract_spectrum_seporb(self,infile=None,chan_low=None,chan_high=None,
+                              energy_low=None,energy_high=None,grouping=20,
+                              grade=None, badcol_tol=0.0, out_suffix='_seporb'):
     outroot = self.obsroot 
-
     if grade:
       outroot += '_g%s' % grade
 
@@ -588,8 +588,7 @@ class Observation:
             split_spectrum = '%s_g%s_source.pha' % (split_root,grade) if grade else '%s_source.pha' % split_root
 
             split_spectra.append(split_spectrum)
-
-    ftools.add_spectra(split_spectra, self.path + outroot + '_seporb', grouping=grouping)
+    ftools.add_spectra(split_spectra, self.path + outroot + out_suffix, grouping=grouping)
 
   def fit_spectrum(self, spectrum=None):
     """
