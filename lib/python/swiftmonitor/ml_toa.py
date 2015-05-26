@@ -281,8 +281,8 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
     else:
         sys.stderr.write('No Energy Filter\n')
 
-    if scope != 'chandra':
-        exposure = fits[0].header['EXPOSURE']
+    #if scope != 'chandra':
+    #    exposure = fits[0].header['EXPOSURE']
 
     try:
         obsid = fits[0].header['OBS_ID']
