@@ -61,7 +61,7 @@ def energy2chan(E, scope='swift'):
     return chans
   
 
-def fits2times(evtname):
+def fits2times(evtname,scope='swift',Emin=None, Emax=None):
     """Given a FITS file, this will read the reference epochs,
        and convert MET into MJD
        INPUTS:
@@ -81,51 +81,14 @@ def fits2times(evtname):
     except (KeyError):
         t = t + fits[1].header['MJDREF'] 
 
-    fits.close()
-    return t  
-
-def times2phases(t, par_fn):
-    """Given an array of times and a parfile, this will read the reference epoch
-       and frequency parameters, and convert into phases
-       INPUTS:
-           t -an array of photon arrival times in MJD
-           par_fn - 
-       OUTPUTS:
-           phase - Pulsar phase, from 0-1.     
-       
-    """
-    par = read_parfile(par_fn)
-
-    phs_args = [ t, par['PEPOCH'].value, par['F0'].value ]
-
-    for i in range(12):
-        fdot_name = 'F' + str(i+1)
-        if fdot_name in par.keys():  
-            phs_args.append(par[fdot_name].value)
-        else:
-            phs_args.append(0.0)
-
-    phases = pu.calc_phs(*phs_args) % 1
-    return phases
-
-
-
-def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
-    """Given a FITS file and a parfile, this will read the reference epochs,
-       and convert into phases
-       INPUTS:
-           fits_fn - name of FITS file to read
-       OUTPUTS:
-           phase - Pulsar phase, from 0-1.     
-       
-    """
-
-    fits = pyfits.open(fits_fn)
-    if scope != 'xte':
+    if "PI" in fits[1].columns.names:
       Echans = fits[1].data['PI']
-    else:
+    elif "PHA" in fits[1].columns.names:
       Echans = fits[1].data['PHA']
-    t = fits2times(fits_fn)
+    else:
+        sys.stderr.write('No Energy Column\n')
+        Emin, Emax = None, None
+
     if (Emin and Emax):
         PI_min = energy2chan(Emin, scope)
         PI_max = energy2chan(Emax, scope)
@@ -138,9 +101,33 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
         t = t[(Echans < PI_max)]
     else:
         sys.stderr.write('No Energy Filter\n')
+
+    fits.close()
+    return t  
+
+def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
+    """Given a FITS file and a parfile, this will read the reference epochs,
+       and convert into phases
+       INPUTS:
+           fits_fn - name of FITS file to read
+       OUTPUTS:
+           phase - Pulsar phase, from 0-1.     
+       
+    """
+
+    t = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope)
     par = read_parfile(par_fn)
 
-    phases=times2phases(t, par_fn)
+    phs_args = [ t, par['PEPOCH'].value, par['F0'].value ]
+
+    for i in range(12):
+        fdot_name = 'F' + str(i+1)
+        if fdot_name in par.keys():  
+            phs_args.append(par[fdot_name].value)
+        else:
+            phs_args.append(0.0)
+
+    phases = pu.calc_phs(*phs_args) % 1
     return phases
 
 
@@ -265,7 +252,7 @@ def randomvariate_old(pdf,n=1000,xmin=0,xmax=1):
     
   return ran,ntrial  
 
-def h_test(phases):
+def h_test(phases, max_harmonic=20):
     """Apply the H test for uniformity on [0,1).
     The H test is an extension of the Z_m^2 or Rayleigh tests for
     uniformity on the circle. These tests estimate the Fourier coefficients
@@ -300,7 +287,6 @@ def h_test(phases):
     
     Updated false alarm rate  to match Jager, Busching 2010
     """
-    max_harmonic = 20
     ev = np.reshape(phases, (-1,))
     cs = np.sum(np.exp(2.j*np.pi*np.arange(1,max_harmonic+1)*ev[:,None]),axis=0)/len(ev)
     Zm2 = 2*len(ev)*np.cumsum(np.abs(cs)**2)
