@@ -80,8 +80,8 @@ if options.H_test:
     H, Nharm, Hfpp=smu.h_test(phases)
     prof_mod = model_profile.makeProfileModel("fourier", \
                np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
-    x = np.linspace(0, options.ncycles, 5*options.ncycles*options.nbins)
-    plt.plot(x,prof_mod.prof_mod(x)*np.mean(folded), lw=2, color='r') 
+    x = np.linspace(0, options.ncycles, 10*options.ncycles*options.nbins)
+    plt.plot(x,prof_mod.prof_mod(np.roll(x,5))*np.mean(folded), lw=2, color='r') 
     plt.text(0.99, 0.99, "$N_{harm}$=%d\n$P_{fa}$=%.2E" % (Nharm, Hfpp), 
              horizontalalignment="right", verticalalignment="top",
              transform = plt.gca().transAxes)
