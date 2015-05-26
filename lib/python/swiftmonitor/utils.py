@@ -116,18 +116,7 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
     """
 
     t = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope)
-    par = read_parfile(par_fn)
-
-    phs_args = [ t, par['PEPOCH'].value, par['F0'].value ]
-
-    for i in range(12):
-        fdot_name = 'F' + str(i+1)
-        if fdot_name in par.keys():  
-            phs_args.append(par[fdot_name].value)
-        else:
-            phs_args.append(0.0)
-
-    phases = pu.calc_phs(*phs_args) % 1
+    phases = times2phases(t, par_fn)
     return phases
 
 
@@ -161,6 +150,30 @@ def fold_phases(phases, nbins=32):
 
     return bins[:-1],folded
 
+def times2phases(t, par_fn):
+    """Given an array of times and a parfile, this will read the reference epoch
+       and frequency parameters, and convert into phases
+       INPUTS:
+           t -an array of photon arrival times in MJD
+           par_fn - 
+       OUTPUTS:
+           phase - Pulsar phase, from 0-1.     
+       
+    """
+    par = read_parfile(par_fn)
+
+    phs_args = [ t, par['PEPOCH'].value, par['F0'].value ]
+
+    for i in range(12):
+        fdot_name = 'F' + str(i+1)
+        if fdot_name in par.keys():  
+            phs_args.append(par[fdot_name].value)
+        else:
+            phs_args.append(0.0)
+
+    phases = pu.calc_phs(*phs_args) % 1
+    return phases
+    
 def events_from_binned_profile(profile): 
     binsize = 1.0 / len(profile)
     phases = np.array([])
