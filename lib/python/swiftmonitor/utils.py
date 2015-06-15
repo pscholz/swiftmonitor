@@ -1,12 +1,94 @@
 import numpy as np
 import astropy.io.fits as pyfits
 import sys 
-import psr_utils as pu
+
+
+SECPERDAY=86400.0
 
 string_pars = ['PSR','PSRJ','EPHEM','CLK','BINARY','JUMP',\
                'UNITS','TZRSITE','TIMEEPH','T2CMETHOD',\
                'CORRECT_TROPOSPHERE','PLANET_SHAPIRO','DILATEFREQ',\
                'RAJ', 'DECJ']
+  
+def calc_freq(MJD, refMJD, *args):
+    """
+    calc_freq(MJD, refMJD, *args):
+        Return the instantaneous frequency at an MJD (can be an array)
+            given a reference MJD and the rotational freq (f0) and
+            optional freq derivs (f1...) as ordered in the *args
+            list (e.g. [f0, f1, f2, ...]).
+            Note: from psr_utils (PRESTO)
+    """
+    t = (MJD-refMJD)*SECPERDAY
+    n = len(args) # polynomial order
+    taylor_coeffs = np.concatenate(([1.0],
+                                     np.cumprod(1.0/(np.arange(float(n-1))+1.0))))
+    p = np.poly1d((taylor_coeffs * args)[::-1])
+    return p(t)
+
+               
+def calc_t0(MJD, refMJD, *args):
+    """
+    calc_t0(MJD, refMJD, *args):
+        Return the closest previous MJD corresponding to phase=0 of the pulse.
+        *args are the spin freq (f0) and optional freq derivs (f1...)
+         Note: from psr_utils (PRESTO)
+    """
+    phs = calc_phs(MJD, refMJD, *args)
+    p = 1.0 / calc_freq(MJD, refMJD, *args)
+    return MJD - phs*p/SECPERDAY
+
+def write_tempo2_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name='unk', flags=""):
+    """
+    Write Tempo2 format TOAs.
+    Note that first line of file should be "FORMAT 1"
+    TOA format is "file freq sat satErr siteID <flags>"
+    Note: from psr_utils (PRESTO)
+    """
+    toa = "%5d"%int(toa_MJDi) + ("%.13f"%toa_MJDf)[1:]
+    if dm != 0.0:
+        flags += "-dm %.4f" % (dm,)
+    print "%s %f %s %.2f %s %s" % (name,freq,toa,toaerr,obs,flags)
+
+def write_princeton_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name=' '*13):
+    """
+    Princeton Format
+
+    columns     item
+    1-1     Observatory (one-character code) '@' is barycenter
+    2-2     must be blank
+    16-24   Observing frequency (MHz)
+    25-44   TOA (decimal point must be in column 30 or column 31)
+    45-53   TOA uncertainty (microseconds)
+    69-78   DM correction (pc cm^-3)
+    Note: from psr_utils (PRESTO)
+    """
+    # Splice together the fractional and integer MJDs
+    toa = "%5d"%int(toa_MJDi) + ("%.13f"%toa_MJDf)[1:]
+    if dm!=0.0:
+        print obs+" %13s %8.3f %s %8.2f              %9.4f" % \
+              (name, freq, toa, toaerr, dm)
+    else:
+        print obs+" %13s %8.3f %s %8.2f" % \
+              (name, freq, toa, toaerr)
+
+def calc_phs(MJD, refMJD, *args):
+    """
+    calc_phs(MJD, refMJD, *args):
+        Return the rotational phase (0-1) at MJD (can be an array)
+            given a reference MJD and the rotational freq (f0) and
+            optional freq derivs (f1...) as ordered in the *args
+            list (e.g. [f0, f1, f2, ...]).
+            Note: from psr_utils (PRESTO)
+    """
+    t = (MJD-refMJD)*SECPERDAY
+    n = len(args) # polynomial order
+    nargs = np.concatenate(([0.0], args))
+    taylor_coeffs = np.concatenate(([0.0],
+                                     np.cumprod(1.0/(np.arange(float(n))+1.0))))
+    p = np.poly1d((taylor_coeffs * nargs)[::-1])
+    return p(t)% 1.0
+               
 
 class Par:
     def __init__(self,name,value,error=None,fit=None):
@@ -61,13 +143,14 @@ def energy2chan(E, scope='swift'):
     return chans
   
 
-def fits2times(evtname,scope='swift',Emin=None, Emax=None):
+def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False):
     """Given a FITS file, this will read the reference epochs,
        and convert MET into MJD
        INPUTS:
               evtname - name of FITS file to read
        OUTPUTS:
-             t - Event arrival times in Modified Julian Dates     
+             t - Event arrival times in Modified Julian Dates    
+             if  give_t_E: - E - Energy of phases
        
     """
     fits = pyfits.open(evtname)
@@ -103,9 +186,12 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None):
         sys.stderr.write('No Energy Filter\n')
 
     fits.close()
-    return t  
+    if give_t_E:
+        return t, Echans
+    else:    
+        return t  
 
-def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
+def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None, give_t_E=False):
     """Given a FITS file and a parfile, this will read the reference epochs,
        and convert into phases
        INPUTS:
@@ -114,10 +200,15 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
            phase - Pulsar phase, from 0-1.     
        
     """
-
-    t = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope)
+    if  give_t_E:
+        t, E = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope, give_t_E=True)
+    else:    
+        t = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope, give_t_E=False)    
     phases = times2phases(t, par_fn)
-    return phases
+    if  give_t_E:
+        return phases, E
+    else:   
+        return phases
 
 
 def fold_fits(fits_fn, par_fn, nbins=32, scope='swift', Emin=None, Emax=None):
@@ -171,7 +262,7 @@ def times2phases(t, par_fn):
         else:
             phs_args.append(0.0)
 
-    phases = pu.calc_phs(*phs_args) % 1
+    phases = calc_phs(*phs_args) 
     return phases
     
 def events_from_binned_profile(profile): 
@@ -325,7 +416,7 @@ def h_test_obs(fits_fn, par_fn):
         else:
             phs_args.append(0.0)
 
-    phases = pu.calc_phs(*phs_args) % 1
+    phases = calc_phs(*phs_args) 
     H, M, fpp=h_test(phases)
     
     return (H, M, fpp)

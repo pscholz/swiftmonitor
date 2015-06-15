@@ -4,8 +4,7 @@ import matplotlib.pyplot as plt
 import astropy.io.fits as pyfits
 import sys
 import os.path
-import psr_utils
-from psr_constants import SECPERDAY
+from swiftmonitor.utils import SECPERDAY
 import swiftmonitor.utils as smu
 from swiftmonitor import model_profile
 import time
@@ -329,10 +328,10 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
             old_model, new_model, corr_folded = correct_model(phases,prof_mod)
         maxoff, error = calc_toa_offset(phases,prof_mod.prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
         midtime = (t[-1]+t[0])/2.0
-        p_mid = 1.0/psr_utils.calc_freq(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
+        p_mid = 1.0/smu.calc_freq(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
                                         par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
 
-        t0 = psr_utils.calc_t0(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
+        t0 = smu.calc_t0(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
                                par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
         t0i = int(t0)
         t0f = t0 - t0i
@@ -342,9 +341,9 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
         
  
         if tempo2:
-            psr_utils.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+            smu.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
         else:
-            psr_utils.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+            smu.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
 
         if print_offs:
             offs_file = open(print_offs,'a')
