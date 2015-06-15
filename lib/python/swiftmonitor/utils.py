@@ -143,13 +143,14 @@ def energy2chan(E, scope='swift'):
     return chans
   
 
-def fits2times(evtname,scope='swift',Emin=None, Emax=None):
+def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False):
     """Given a FITS file, this will read the reference epochs,
        and convert MET into MJD
        INPUTS:
               evtname - name of FITS file to read
        OUTPUTS:
-             t - Event arrival times in Modified Julian Dates     
+             t - Event arrival times in Modified Julian Dates    
+             if  give_t_E: - E - Energy of phases
        
     """
     fits = pyfits.open(evtname)
@@ -185,9 +186,12 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None):
         sys.stderr.write('No Energy Filter\n')
 
     fits.close()
-    return t  
+    if give_t_E:
+        return t, Echans
+    else:    
+        return t  
 
-def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
+def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None, give_t_E=False):
     """Given a FITS file and a parfile, this will read the reference epochs,
        and convert into phases
        INPUTS:
@@ -196,10 +200,15 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None):
            phase - Pulsar phase, from 0-1.     
        
     """
-
-    t = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope)
+    if  give_t_E:
+        t, E = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope, give_t_E=True)
+    else:    
+        t = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope, give_t_E=False)    
     phases = times2phases(t, par_fn)
-    return phases
+    if  give_t_E:
+        return phases, E
+    else:   
+        return phases
 
 
 def fold_fits(fits_fn, par_fn, nbins=32, scope='swift', Emin=None, Emax=None):
