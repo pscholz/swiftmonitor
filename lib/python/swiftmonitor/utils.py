@@ -38,7 +38,7 @@ def calc_t0(MJD, refMJD, *args):
     p = 1.0 / calc_freq(MJD, refMJD, *args)
     return MJD - phs*p/SECPERDAY
 
-def write_tempo2_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name='unk', flags=""):
+def write_tempo2_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name='unk', flags="", writefile=False):
     """
     Write Tempo2 format TOAs.
     Note that first line of file should be "FORMAT 1"
@@ -48,7 +48,12 @@ def write_tempo2_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name='unk', 
     toa = "%5d"%int(toa_MJDi) + ("%.13f"%toa_MJDf)[1:]
     if dm != 0.0:
         flags += "-dm %.4f" % (dm,)
-    print "%s %f %s %.2f %s %s" % (name,freq,toa,toaerr,obs,flags)
+    if writefile:
+        text_file = open(writefile, "w")
+        text_file.write("%s %f %s %.2f %s %s\n" % (name,freq,toa,toaerr,obs,flags))
+        text_file.close()
+    else:    
+        print "%s %f %s %.2f %s %s" % (name,freq,toa,toaerr,obs,flags)
 
 def write_princeton_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name=' '*13):
     """
