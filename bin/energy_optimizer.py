@@ -33,7 +33,7 @@ parser.add_option("--Emax",
      default=None)		  	
 parser.add_option("-s", "--steps",
     dest="steps", type='int',
-    help="Number of steps in Enengy opyimization.",
+    help="Number of steps in Enengy optimization.",
     default=16)     	
 parser.add_option( "--2-D",
     dest="twoD", action='store_true',
@@ -78,7 +78,7 @@ Cuts = smu.energy2chan(ECuts, scope=options.scope)
 if options.twoD:
     hs=np.zeros((options.steps, options.steps))
     for i in range(0, options.steps):
-        for j in range(0, options.steps):
+        for j in range(i, options.steps):
            filt=np.where((Es>Cuts[i])*(Es<Cuts[j])) 
            hs[i][j]=smu.h_test(phases[filt])[0]
     hsm=np.ma.masked_where(np.isnan(hs),hs)  
