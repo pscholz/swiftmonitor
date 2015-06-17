@@ -26,7 +26,7 @@ parser.add_option("--scope",
 parser.add_option("--Emin",
     dest="emin", type='float',
     help="Minimum energy of events to use (works only for Swift, Nustar).",
-    default=None)
+    default=0.0)
 parser.add_option("--Emax",
     dest="emax", type='float',
     help="Maximum energy of events to use (works only for Swift, Nustar).",
@@ -54,7 +54,7 @@ parser.add_option("-l", "--list",
     default=None)      
  
 (options,args) = parser.parse_args()
-if options.emin or options.emax == None:
+if options.emin ==None or options.emax == None:
     print('Must give Enegy bounds')
     raise SystemExit
 if options.list:
