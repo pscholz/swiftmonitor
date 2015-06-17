@@ -254,7 +254,7 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
 def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, 
                frequency=None, epoch=None,  sim=False, bg_counts=0, Emin=None, 
                Emax=None, gauss_err=False, tempo2=False, debug=False, 
-               correct_pf=False, split_num=None, split_orbits=False):
+               correct_pf=False, split_num=None, split_orbits=False, writefile=False):
 
     print_timings = False # if want to print summary of runtime
 
@@ -341,9 +341,9 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
         
  
         if tempo2:
-            smu.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+            smu.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid, writefile=writefile) 
         else:
-            smu.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid) 
+            smu.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid)
 
         if print_offs:
             offs_file = open(print_offs,'a')

@@ -84,6 +84,10 @@ parser.add_option("--tempo2",
 		  dest="tempo2", action='store_true',
 		  help="Print TOA in tempo2 format.",
 		  default=False)
+parser.add_option("--writefile",
+		  dest="writefile", type='string',
+		  help="Print TOA to file (ONLY FOR tempo2 FORMAT)",
+		  default=False)		  
  
 (options,args) = parser.parse_args()
 
@@ -111,5 +115,5 @@ else:
     ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, scope=options.scope, \
                       print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
-                      debug=options.plot_dist,correct_pf=options.correct_pf, split_orbits=options.orbits, split_num=options.ntoas)
+                      debug=options.plot_dist,correct_pf=options.correct_pf, split_orbits=options.orbits, split_num=options.ntoas, writefile=options.writefile)
 
