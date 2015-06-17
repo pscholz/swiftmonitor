@@ -156,7 +156,9 @@ if options.list:
             except (Exception):
                 print('MANUALLY CHECK ', obs)  
     for ax in (ax1, ax2, ax3, ax4):
-        plt.setp(ax.get_xticklabels(), visible=False)     
+        plt.setp(ax.get_xticklabels(), visible=False)
+        plt.setp(ax.get_yticklabels()[0], visible=False)    
+        plt.setp(ax.get_yticklabels()[-1], visible=False)       
     Nbins=len(profile.T[0])
     ax2.axhline(scipy.stats.chi2.interval(0.997, Nbins)[1]/Nbins, ls='dashed', color='r' , label='$3-\\sigma$')
     ax2.axhline(scipy.stats.chi2.interval(0.95, Nbins)[1]/Nbins, ls='dotted', color='r', label='$2-\\sigma$')
@@ -164,6 +166,6 @@ if options.list:
     ax5.axhline(2.5228, ls='dashed', color='r' , label='$3-\\sigma$') 
     ax5.legend(loc=2)
     plt.xlabel('Modified Julian Date')
-    plt.savefig('test.png')        
+    plt.savefig('summary_'+options.name+'.png')        
 
         

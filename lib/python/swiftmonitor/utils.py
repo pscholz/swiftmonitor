@@ -192,6 +192,16 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False):
 
     fits.close()
     if give_t_E:
+        if (Emin and Emax):
+            PI_min = energy2chan(Emin, scope)
+            PI_max = energy2chan(Emax, scope)
+            Echans = Echans[(Echans < PI_max) & (Echans > PI_min)]
+        elif Emin:
+            PI_min = energy2chan(Emin, scope)
+            Echans = Echans[(Echans > PI_min)]
+        elif Emax:
+            PI_max = energy2chan(Emax, scope)
+            Echans = Echans[(Echans < PI_max)] 
         return t, Echans
     else:    
         return t  
@@ -396,13 +406,18 @@ def h_test(phases, max_harmonic=20):
     
     Updated false alarm rate  to match Jager, Busching 2010
     """
-    ev = np.reshape(phases, (-1,))
-    cs = np.sum(np.exp(2.j*np.pi*np.arange(1,max_harmonic+1)*ev[:,None]),axis=0)/len(ev)
-    Zm2 = 2*len(ev)*np.cumsum(np.abs(cs)**2)
-    Hcand = (Zm2 - 4*np.arange(1,max_harmonic+1) + 4)
-    M = np.argmax(Hcand)+1
-    H = Hcand[M-1]
-    fpp =np.exp(-0.4*H) 
+    if len(phases)==0:
+        H=0
+        M=0
+        fpp=1
+    else:
+        ev = np.reshape(phases, (-1,))
+        cs = np.sum(np.exp(2.j*np.pi*np.arange(1,max_harmonic+1)*ev[:,None]),axis=0)/len(ev)
+        Zm2 = 2*len(ev)*np.cumsum(np.abs(cs)**2)
+        Hcand = (Zm2 - 4*np.arange(1,max_harmonic+1) + 4)
+        M = np.argmax(Hcand)+1
+        H = Hcand[M-1]
+        fpp =np.exp(-0.4*H) 
     return (H, M, fpp)
 
 def h_test_obs(fits_fn, par_fn):
