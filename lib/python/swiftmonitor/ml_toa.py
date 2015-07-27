@@ -253,21 +253,23 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
 
 def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, 
                frequency=None, epoch=None,  sim=False, bg_counts=0, Emin=None, 
-               Emax=None, gauss_err=False, tempo2=False, debug=False, 
+               Emax=None, gauss_err=False, tempo2=False, debug=False, split_n_days=None, 
                correct_pf=False, split_num=None, split_orbits=False, writefile=False):
 
     print_timings = False # if want to print summary of runtime
-
-    fits = pyfits.open(fits_fn)
-    t = smu.fits2times(fits_fn, scope=scope, Emin=Emin, Emax=Emax)
+    if split_n_days==None:
+        fits = pyfits.open(fits_fn)
+        t = smu.fits2times(fits_fn, scope=scope, Emin=Emin, Emax=Emax)
 
     #if scope != 'chandra':
     #    exposure = fits[0].header['EXPOSURE']
 
-    try:
-        obsid = fits[0].header['OBS_ID']
-    except KeyError:
-        obsid = os.path.basename(fits_fn)
+        try:
+            obsid = fits[0].header['OBS_ID']
+        except KeyError:
+            obsid = os.path.basename(fits_fn)
+    else:
+        obsid = 'split_'+str(split_n_days)+'_days'        
 
     if bg_counts < 0:
         bg_scale = -1.0*bg_counts
@@ -301,10 +303,20 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
         if remainder:
             sys.stderr.write("Warning: Number of events in %s not divisable by %d. " \
                              "Dropping last %d events.\n" % (obsid, split_num, remainder))
-            ts = np.split(t[:-remainder],split_num)
+            ts = np.split(t[:-remainder],split_num)       
         else:
             ts = np.split(t,split_num)
 
+    elif split_n_days:
+        t=np.zeros(0)
+        fits_files = np.loadtxt(fits_fn, dtype='S')
+        for fit in fits_files:
+            t = np.append(t, smu.fits2times(fit, scope=scope, Emin=Emin, Emax=Emax))
+        t.sort()  
+        dt=t[1:]-t[:-1]
+        splits = np.where(dt>split_n_days)[0]
+        ts=np.split(t, splits)    
+        
     else:
         ts = np.atleast_2d(t)
 
@@ -320,8 +332,10 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
            
 
     for i,t in enumerate(ts):
-        sys.stderr.write('Measuring TOA #%d for %s\n' % (i+1,obsid))
-
+        if split_n_days:
+            sys.stderr.write('Measuring TOA #%d of %d\n' % (i+1,len(ts)))
+        else:
+            sys.stderr.write('Measuring TOA #%d for %s\n' % (i+1,obsid))
         phases = smu.times2phases(t, parfile)
 
         if correct_pf:
@@ -351,8 +365,8 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
             offs_file.write(fits_fn + "\t" + str(maxoff) + "\t" + str(error) + "\n")
             #print obsid,"\tOffset:",maxoff,"+/-",error 
             offs_file.close()
-
-        fits.close()
+        if split_n_days==None:
+            fits.close()
 
         
         #double check PF correction with measuring binned model pulsed fraction
