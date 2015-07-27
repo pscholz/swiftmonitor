@@ -26,19 +26,19 @@ def logsumexp(array):
         return np.logaddexp(array[0],array[1])
     else:
         return np.logaddexp(array[0],logsumexp(array[1:]))
-        
+
 def calc_prob(phases, offset, prof_mod):
     """
     Calculates the probability of an offset given a profile model and a list of phases.
     """
-    probs = prof_mod( phases - offset ) 
+    probs = prof_mod( phases - offset )
 
     loglike = np.sum( np.log(probs) )
     return loglike
 
 class PSRpar:
     """
-    This class contains all the relevant information for 
+    This class contains all the relevant information for
         extracting a TOA, which is extracted from a .par file.
         Currently, this supports up to 12 frequency derivatives
         but NO GLITCH PARAMETERS (yet).
@@ -51,15 +51,15 @@ class PSRpar:
         self.fdots = np.zeros(12)
         for i in range(12):
             fdot_name = 'F' + str(i+1)
-            if fdot_name in pars.keys():  
+            if fdot_name in pars.keys():
                 self.fdots[i] = pars[fdot_name].value
 
     def __repr__(self):
-        return repr((self.f0, self.fdots, self.epoch))    
+        return repr((self.f0, self.fdots, self.epoch))
 
 def get_error(offsets, prob, del_off, debug=False):
     """
-    Integrates from either side of the most probable offset to 34.1% 
+    Integrates from either side of the most probable offset to 34.1%
         of area under distribution. Takes half of the distance between
         those two points as the sigma of the distribution.
     """
@@ -88,18 +88,18 @@ def get_error(offsets, prob, del_off, debug=False):
 
 def get_error_gaussfit(offsets, prob, del_off, debug=False):
     """
-    Fits a gaussian to the probability distribution 
+    Fits a gaussian to the probability distribution
         to get the phase-offset error (the width of the gaussian)
     """
 
     maxoff = offsets[np.argmax(prob)]
     prob_centered = np.roll(prob, len(offsets)/2 - np.argmax(prob))
-    
+
     p0 = 0.05
     errfunc = lambda p, x, y: (y - stats.norm.pdf(x, loc=0.5, scale=p))
     output = optimize.leastsq(errfunc, p0, args=(offsets,prob_centered))
     sigma = output[0]
-    
+
     if debug:
         plt.errorbar(offsets[np.argmax(prob_centered)],0.5*max(prob_centered),
                      xerr=sigma,fmt='o')
@@ -128,14 +128,14 @@ def sim_error(prof_mod,N_counts,phases,from_template=True, debug=False):
 
     if not from_template:
         bins = np.linspace(0,1,N_bins+1)
-        folded = np.histogram(phases,bins)[0] 
+        folded = np.histogram(phases,bins)[0]
 
     while run < N_sim:
         sys.stderr.write("Sim %d %% Complete \r" % (run*100.0/N_sim))
         sys.stderr.flush()
 
         if from_template:
-            simmed_phases = smu.randomvariate(prof_mod,N_counts) 
+            simmed_phases = smu.randomvariate(prof_mod,N_counts)
         else:
             folded = np.random.poisson(folded)
             simmed_phases = smu.events_from_binned_profile(folded)
@@ -181,7 +181,7 @@ def correct_model(phases,prof_mod):
     if rms_value == 0:
         sys.stderr.write('PF Correction: Measured zero pulsed flux.\n\t Low S/N observation? \n\t Not correcting for PF.\n')
         return prof_mod.prof_mod, prof_mod.prof_mod, folded
-        
+
 
     # correct zeroth fourier component to match pulsed fraction
     prof_mod.comp[0] = prof_mod.comp[0] * model_pulsed_fraction / pulsed_fraction
@@ -194,7 +194,7 @@ def correct_model(phases,prof_mod):
     return old_prof, prof_mod.prof_mod, folded
 
 
-def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False, 
+def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
                     gauss_err=False, bg_counts=0, debug=False):
     """
     Calculate an offset between the observation pulse profile and the template pulse profile.
@@ -202,14 +202,14 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
        (prof mod) which is used as a probability distribution.
 
        The error in the offset can be determined by integrating the resulting likelihood
-       distribution or by using simulations (by setting sim_err=True). 
+       distribution or by using simulations (by setting sim_err=True).
 
        The simulations use the total number of source counts, which for low S/N the contribution
        from the background can be large, so bg_counts (set to number of background counts
        expected in the source extraction region) can be used to correct for that.
     """
     global calcprobtime
-    global logsumtime 
+    global logsumtime
     global integratetime
 
     probs = []
@@ -219,11 +219,11 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
 
     starttime = time.time()
     for offset in offsets:
-        prob =  calc_prob(phases, offset, prof_mod)  
+        prob =  calc_prob(phases, offset, prof_mod)
         probs.append(prob)
     calcprobtime += time.time() - starttime
 
-    # normalise as likelihood with logsumexp 
+    # normalise as likelihood with logsumexp
     starttime = time.time()
     logsum = logsumexp(probs)
     probs = probs - logsum - np.log(del_off)
@@ -240,7 +240,7 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
     if sim_err:
         maxoff = offsets[np.argmax(probs)]
         error = sim_error(prof_mod,len(phases)-bg_counts,phases,
-                          from_template=True, debug=debug) 
+                          from_template=True, debug=debug)
     elif no_err:
         maxoff = offsets[np.argmax(probs)]
         error = None
@@ -248,12 +248,12 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
         maxoff, error = get_error_gaussfit(offsets, probs_norm, del_off, debug=debug)
     else:
         maxoff, error = get_error(offsets, probs_norm, del_off, debug=debug)
-    
+
     return maxoff, error
 
-def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None, 
-               frequency=None, epoch=None,  sim=False, bg_counts=0, Emin=None, 
-               Emax=None, gauss_err=False, tempo2=False, debug=False, split_n_days=None, 
+def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
+               frequency=None, epoch=None,  sim=False, bg_counts=0, Emin=None,
+               Emax=None, gauss_err=False, tempo2=False, debug=False, split_n_days=None,
                correct_pf=False, split_num=None, split_orbits=False, writefile=False):
 
     print_timings = False # if want to print summary of runtime
@@ -269,7 +269,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
         except KeyError:
             obsid = os.path.basename(fits_fn)
     else:
-        obsid = 'split_'+str(split_n_days)+'_days'        
+        obsid = 'split_'+str(split_n_days)+'_days'
 
     if bg_counts < 0:
         bg_scale = -1.0*bg_counts
@@ -303,7 +303,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
         if remainder:
             sys.stderr.write("Warning: Number of events in %s not divisable by %d. " \
                              "Dropping last %d events.\n" % (obsid, split_num, remainder))
-            ts = np.split(t[:-remainder],split_num)       
+            ts = np.split(t[:-remainder],split_num)
         else:
             ts = np.split(t,split_num)
 
@@ -312,11 +312,16 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
         fits_files = np.loadtxt(fits_fn, dtype='S')
         for fit in fits_files:
             t = np.append(t, smu.fits2times(fit, scope=scope, Emin=Emin, Emax=Emax))
-        t.sort()  
+        t.sort()
         dt=t[1:]-t[:-1]
-        splits = np.where(dt>split_n_days)[0]
-        ts=np.split(t, splits)    
-        
+        splits = np.where(dt>0.1)[0]
+        newsplit=[]
+        gaps=t[2:][splits]-t[0]
+        while(gaps[-1]>split_n_days):
+            newsplit.append(splits[np.where(gaps>split_n_days)[0][0]])
+            gaps=gaps-gaps[np.where(gaps>split_n_days)[0][0]]
+        ts=np.split(t, newsplit)
+
     else:
         ts = np.atleast_2d(t)
 
@@ -329,7 +334,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
             plt.axvline(t[0],ls='--',c='k',lw=2)
             plt.axvline(t[-1],ls='-',c='k',lw=2)
         plt.show()
-           
+
 
     for i,t in enumerate(ts):
         if split_n_days:
@@ -343,19 +348,19 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
         maxoff, error = calc_toa_offset(phases,prof_mod.prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
         midtime = (t[-1]+t[0])/2.0
         p_mid = 1.0/smu.calc_freq(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
-                                        par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
+                                        par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8])
 
         t0 = smu.calc_t0(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
-                               par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8]) 
+                               par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8])
         t0i = int(t0)
         t0f = t0 - t0i
 
         toaf = t0f + maxoff*p_mid / SECPERDAY
         newdays = int(np.floor(toaf))
-        
- 
+
+
         if tempo2:
-            smu.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid, writefile=writefile) 
+            smu.write_tempo2_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid, writefile=writefile)
         else:
             smu.write_princeton_toa(t0i+newdays, toaf-newdays, error*p_mid*1.0e6, 0000, 0.0, name=obsid)
 
@@ -363,12 +368,12 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
             offs_file = open(print_offs,'a')
             #print "\t",error*p_mid*1.0e6,"\t",exposure # this was for checking uncertainties scaling with exposure time
             offs_file.write(fits_fn + "\t" + str(maxoff) + "\t" + str(error) + "\n")
-            #print obsid,"\tOffset:",maxoff,"+/-",error 
+            #print obsid,"\tOffset:",maxoff,"+/-",error
             offs_file.close()
         if split_n_days==None:
             fits.close()
 
-        
+
         #double check PF correction with measuring binned model pulsed fraction
         if correct_pf and debug:
             plt.figure()
@@ -385,7 +390,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
 
     if print_timings:
         global calcprobtime
-        global logsumtime 
+        global logsumtime
         global integratetime
 
         sys.stderr.write('\tCalc Prob: %f s\n' % calcprobtime)
