@@ -314,13 +314,13 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
             t = np.append(t, smu.fits2times(fit, scope=scope, Emin=Emin, Emax=Emax))
         t.sort()
         dt=t[1:]-t[:-1]
-        splits = np.where(dt>0.1)[0]
+        splits = np.where(dt>0.0116)[0] # 1 ks in days 0.0116
         newsplit=[]
-        gaps=t[2:][splits]-t[0]
+        gaps=t[1:][splits]-t[0]
         while(gaps[-1]>split_n_days):
             newsplit.append(splits[np.where(gaps>split_n_days)[0][0]])
             gaps=gaps-gaps[np.where(gaps>split_n_days)[0][0]]
-        ts=np.split(t, newsplit)
+        ts=np.split(t, np.array(newsplit)+1)
 
     else:
         ts = np.atleast_2d(t)
