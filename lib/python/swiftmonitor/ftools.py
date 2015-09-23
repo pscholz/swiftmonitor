@@ -364,13 +364,13 @@ def add_spectra(spec_list, outroot, grouping=None):
         f.write(tmp_arf + ' ' + str(weight) + '\n')
     f.close()
 
-    cmd = "addarf @tmp_arfs.list out_ARF=%s" % outroot + '.arf'
+    cmd = "addarf @tmp_arfs.list out_ARF=%s clobber=yes" % outroot + '.arf'
     execute_cmd(cmd)
 
-    cmd = "mathpha expr=%s units=C outfil=temp_final_spec.bak exposure=CALC areascal='%%' backscal='%%' ncomment=0" % (back_math_expr)
+    cmd = "mathpha expr=%s units=C outfil=temp_final_spec.bak exposure=CALC areascal='%%' backscal='%%' ncomment=0 clobber=yes" % (back_math_expr)
     execute_cmd(cmd)
 
-    cmd = "mathpha expr=%s units=C outfil=temp_final_spec.pha exposure=CALC areascal='%%' backscal='%%' ncomment=0" % (src_math_expr)
+    cmd = "mathpha expr=%s units=C outfil=temp_final_spec.pha exposure=CALC areascal='%%' backscal='%%' ncomment=0 clobber=yes" % (src_math_expr)
     execute_cmd(cmd)
 
     #Run grppha to change the auxfile keys and to do grouping if needed
