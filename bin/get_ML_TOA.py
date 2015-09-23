@@ -76,6 +76,10 @@ parser.add_option("--Ntoas",
 		  dest="ntoas", type='int',
 		  help="Number of TOAs to extract per observation.",
 		  default=None)
+parser.add_option("--split_days",
+		  dest="split_n_days", type='float',
+		  help="If given a float, will read in multiple fits files and extract one TOA per split_n_days days. Note: assumes final argument is a list of fits files",
+		  default=None)
 parser.add_option("--orbits",
 		  dest="orbits", action='store_true',
 		  help="Extract one TOA per orbit.",
@@ -114,6 +118,9 @@ else:
   for fitsfile in flist:
     ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, scope=options.scope, \
                       print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
-                      Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
-                      debug=options.plot_dist,correct_pf=options.correct_pf, split_orbits=options.orbits, split_num=options.ntoas, writefile=options.writefile)
+                      Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err,
+                      tempo2=options.tempo2, debug=options.plot_dist,
+                      correct_pf=options.correct_pf,  split_n_days=options.split_n_days,
+                      split_orbits=options.orbits, split_num=options.ntoas,
+                      writefile=options.writefile)
 
