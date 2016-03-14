@@ -488,7 +488,7 @@ def split_orbits(infile):
 
     return outfiles
 
-def locate_bad_columns(ra, dec, evtfile, teldeffile, alignfile, attfile):
+def locate_bad_columns(ra, dec, evtfile, teldeffile, alignfile, attfile, mode):
     """
     Determines location of source in detector coords and compares to location
       of known bad columns. Does this for each orbit, since location of source
@@ -500,12 +500,17 @@ def locate_bad_columns(ra, dec, evtfile, teldeffile, alignfile, attfile):
         - teldeffile: Name of the teldef file for the observation.
         - alignfile: Name of the alignment file for the observation.
         - attfile: Name of the spacecraft attitude file for the observation.
+        - mode: wt mode or pc mode
  
       Returns list of orbits and a list of distances to nearest bad column for each orbit. 
     """
 
     # bad_cols in [startx, stopx]
-    bad_cols = [[289.5,295.5], [318.5,321.5]]
+    #Note: Col 200 and 400 are edge of chip in WT mode, consider the edges 'bad'
+    if mode == 'wt':
+        bad_cols = [[289.5,295.5], [318.5,321.5], [199.5, 200.5],[399.5, 400.5] ]
+    if mode == 'pc':
+        bad_cols = [[289.5,295.5], [318.5,321.5]]    
     orbits = define_orbits(evtfile)[0]
     distances = []
 
