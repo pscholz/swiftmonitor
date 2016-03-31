@@ -310,8 +310,11 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
     elif split_n_days:
         t=np.zeros(0)
         fits_files = np.loadtxt(fits_fn, dtype='S')
-        for fit in fits_files:
-            t = np.append(t, smu.fits2times(fit, scope=scope, Emin=Emin, Emax=Emax))
+        try:
+            for fit in fits_files:
+                t = np.append(t, smu.fits2times(fit, scope=scope, Emin=Emin, Emax=Emax))
+        except (Exception):
+             t = np.append(t, smu.fits2times(fits_files.tostring(), scope=scope, Emin=Emin, Emax=Emax))        
         t.sort()
         dt=t[1:]-t[:-1]
         splits = np.where(dt>0.0116)[0] # 1 ks in days 0.0116
