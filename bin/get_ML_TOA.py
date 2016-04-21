@@ -78,7 +78,7 @@ parser.add_option("--Ntoas",
 		  default=None)
 parser.add_option("--split_days",
 		  dest="split_n_days", type='float',
-		  help="If given a float, will read in multiple fits files and extract one TOA per split_n_days days. Note: assumes final argument is a list of fits files",
+		  help="If given a float, will read in multiple fits files and extract one TOA per split_n_days days. Note: must provide list of files with -l option",
 		  default=None)
 parser.add_option("--orbits",
 		  dest="orbits", action='store_true',
@@ -108,6 +108,15 @@ if options.periodogram:
                       print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i], sim=options.sim, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
                       debug=options.plot_dist, correct_pf=options.correct_pf, split_orbits=options.orbits, split_num=options.ntoas)
+
+elif options.list and options.split_n_days:
+    ml_toa.get_ml_toa(options.list, prof_mod, options.parfile, scope=options.scope, \
+                      print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
+                      Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err,
+                      tempo2=options.tempo2, debug=options.plot_dist,
+                      correct_pf=options.correct_pf,  split_n_days=options.split_n_days,
+                      split_orbits=options.orbits, split_num=options.ntoas,
+                      writefile=options.writefile)
 
 else:
   if options.list:
