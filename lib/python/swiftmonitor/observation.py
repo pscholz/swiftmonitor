@@ -422,7 +422,6 @@ class Observation:
 	Source: Circle of radius 20 pixels
 	Backgound: Annulus with inner radius 40 pixels and outer radius 60 pixels
     """
-
     x, y = self.find_centroid()
 
     f = open(self.path + "/source.reg","w")
@@ -439,6 +438,7 @@ class Observation:
  
     self.src_region = "source.reg"
     self.back_region = "back.reg"
+
 
   def correct_backscal(self, sourcefile=None, bgfile=None, value=1.0):
     """
