@@ -40,7 +40,8 @@ class Observation:
     self.spec_fit = None
     self.ra, self.dec = None, None
     self.expmap=None
-
+    self.src_region=None
+    self.back_region=None
     #auxillary files set by injest_auxil
     self.attfile = None
     self.hdfile = None
@@ -370,16 +371,16 @@ class Observation:
     ftools.extract(full_outroot,infile,events=events,image=image,pha=pha,lc=lc,region=region, \
                    grade=grade,gtifile=gtifile,chanlow=chanlow,chanhigh=chanhigh)
    
-  def find_centroid(self,force_redo=False,use_max=True):
+  def find_centroid(self,force_redo=False,use_max=True, chanlow=0,chanhigh=1023):
     """
     Finds centroid of source (hopefully)
       Returns x, y coordinates of centroid in pixels.
     """
 
     if not self.imagefile:
-      self.extract(self.obsroot, infile= self.path + self.obsfile, image=True,events=False)
+      self.extract(self.obsroot, infile= self.path + self.obsfile, image=True,events=False, chanlow=chanlow, chanhigh=chanhigh)
       self.imagefile = self.obsroot + '.img'
-
+      print('I AM USING CHANLOW='+str(chanlow))
     if use_max:
       fits = pyfits.open(self.path + self.imagefile)
       image = fits[0].data
@@ -549,7 +550,7 @@ class Observation:
                               energy_low=None,energy_high=None,grouping=20,
                               grade=None, badcol_tol=0.0, out_suffix='_seporb'):
     outroot = self.obsroot 
-    if grade:
+    if grade!=None:
       outroot += '_g%s' % grade
 
     if infile == None:

@@ -115,15 +115,16 @@ def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=Non
     cmd = 'extractor ' + args 
     execute_cmd(cmd)
 
-def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True):
+def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True, chanlow=0,chanhigh=1023):
     """
     Finds centroid of source (hopefully)
       Returns x, y coordinates of centroid in pixels.
     """
 
     if not imagefile:
-      extract("temp", infile=event_file, image=True,events=False)
+      extract("temp", infile=event_file, image=True,events=False,chanlow=chanlow, chanhigh=chanhigh)
       imagefile = 'temp.img'
+      print('I AM USING CHANLOW='+str(chanlow))
 
     if use_max:
       fits = pyfits.open(imagefile)
@@ -267,7 +268,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
     else:
         x, y = find_centroid(infile)
 
-    if grade:
+    if grade!=None:
       outroot += '_g%s' % grade
 
     extract("temp_source",infile=infile, events=False, pha=True,\
@@ -624,12 +625,12 @@ def read_region_file(region_fn):
 
     return reg_obj
 
-def make_wt_regions(event_file, source_rad, back_rad, source_fn='source.reg', back_fn='back.reg'):
+def make_wt_regions(event_file, source_rad, back_rad, source_fn='source.reg', back_fn='back.reg', chanlow=0, chanhigh=1023):
     """
     Create source and background .reg files. Source is a circle of radius=source_rad and ...
     """
 
-    x, y = find_centroid(event_file)
+    x, y = find_centroid(event_file, chanlow=chanlow, chanhigh=chanhigh)
 
     source_reg = region('circle', [source_rad], [x,y])
     back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [x,y])
