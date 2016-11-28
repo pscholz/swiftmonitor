@@ -115,15 +115,16 @@ def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=Non
     cmd = 'extractor ' + args 
     execute_cmd(cmd)
 
-def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True):
+def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True, chanlow=0,chanhigh=1023):
     """
     Finds centroid of source (hopefully)
       Returns x, y coordinates of centroid in pixels.
     """
 
     if not imagefile:
-      extract("temp", infile=event_file, image=True,events=False)
+      extract("temp", infile=event_file, image=True,events=False,chanlow=chanlow, chanhigh=chanhigh)
       imagefile = 'temp.img'
+      print('I AM USING CHANLOW='+str(chanlow))
 
     if use_max:
       fits = pyfits.open(imagefile)
@@ -267,7 +268,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
     else:
         x, y = find_centroid(infile)
 
-    if grade:
+    if grade!=None:
       outroot += '_g%s' % grade
 
     extract("temp_source",infile=infile, events=False, pha=True,\
@@ -571,10 +572,16 @@ class region:
 
     def get_region_str(self):
         # TODO: add other shapes and assert that shape is available
-        if self.shape is 'circle':
-            region_str = 'circle(%s,%s,%d)' % (self.loc[0], self.loc[1], self.dim[0])
-        if self.shape is 'annulus':
-            region_str = 'annulus(%s,%s,%d,%d)' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
+        if self.coords.startswith('physical'):
+            if self.shape is 'circle':
+                region_str = 'circle(%s,%s,%d)' % (self.loc[0], self.loc[1], self.dim[0])
+            if self.shape is 'annulus':
+                region_str = 'annulus(%s,%s,%d,%d)' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
+        if self.coords.startswith('fk5'):
+            if self.shape is 'circle':
+                region_str = 'circle(%s,%s,%d\")' % (self.loc[0], self.loc[1], self.dim[0])
+            if self.shape is 'annulus':
+                region_str = 'annulus(%s,%s,%d\",%d\")' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])      
         return region_str
 
     def write(self,output_fn):
@@ -618,19 +625,45 @@ def read_region_file(region_fn):
 
     return reg_obj
 
-def make_wt_regions(event_file, source_rad, back_rad, source_fn='source.reg', back_fn='back.reg'):
+def make_wt_regions(event_file, source_rad, back_rad, source_fn='source.reg', back_fn='back.reg', chanlow=0, chanhigh=1023):
     """
     Create source and background .reg files. Source is a circle of radius=source_rad and ...
     """
 
-    x, y = find_centroid(event_file)
+    x, y = find_centroid(event_file, chanlow=chanlow, chanhigh=chanhigh)
 
     source_reg = region('circle', [source_rad], [x,y])
     back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [x,y])
 
     source_reg.write(source_fn)
     back_reg.write(back_fn)
+    
+def make_coord_regions(event_file, source_rad, back_rad, RA, DEC, source_fn='source.reg', back_fn='back.reg'):
+    """
+    Create source and background .reg files. Source is a circle of radius=source_rad and ...
+    """
 
+    source_reg = region('circle', [source_rad], [RA, DEC], coords = 'fk5')
+    back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [RA, DEC], coords = 'fk5')
+
+    source_reg.write(source_fn)
+    back_reg.write(back_fn)
+
+    
+def make_pileup_regions(event_file, source_rad, back_rad, RA, DEC, source_fn='source.reg', back_fn='back.reg'):
+    """
+    Create source and background .reg files. Source is an annulus of radius=source_rad and ...
+    """
+
+    source_reg = region('annulus', [ 10, source_rad ], [RA, DEC], coords = 'fk5')
+    back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [RA, DEC], coords = 'fk5')
+
+    source_reg.write(source_fn)
+    back_reg.write(back_fn)
+
+
+  
+    
 def correct_backscal(source_file, back_file, source_reg_fn, back_reg_fn):
     """
     Corrects the BACKSCAL keyword in the source_file and back_file spectra.

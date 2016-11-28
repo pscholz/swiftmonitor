@@ -142,6 +142,11 @@ def energy2chan(E, scope='swift'):
         chans = E * 100.0
     elif scope == 'nustar':
         chans = (E - 1.6) / 0.04
+    elif scope == 'xmm':
+        chans = E*1000.   
+    elif scope == 'fermi':
+        chans = E*1000.
+            
     else:
         sys.stderr.write('Warning: scope not found, assuming channels!\n')
         chans = E
@@ -159,8 +164,11 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False, aware
 
     """
     fits = pyfits.open(evtname)
-    t = fits[1].data['time']
-    t = t
+    if scope =='fermi':
+        t = fits[1].data['bary_time'] 
+    else:       
+        t = fits[1].data['time']
+        t = t
     t = t / 86400.0
 
     try:
@@ -173,6 +181,8 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False, aware
       Echans = fits[1].data['PI']
     elif "PHA" in fits[1].columns.names:
       Echans = fits[1].data['PHA']
+    elif "ENERGY" in fits[1].columns.names:
+      Echans = fits[1].data['ENERGY'] 
     else:
         sys.stderr.write('No Energy Column\n')
         Emin, Emax = None, None
