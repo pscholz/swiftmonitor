@@ -564,7 +564,7 @@ class Observation:
     split_spectra = []
     for split_file in split_files:
         badcol_dist = ftools.locate_bad_columns(self.ra, self.dec, split_file, self.teldeffile, \
-                                                self.alignfile, self.attfile)[1][0]
+                                                self.alignfile, self.attfile, self.mode)[1][0]
 
         if badcol_dist < badcol_tol:
             print "\nWARNING: Ignoring orbit %s because %.2f pixels away from bad columns.\n" \

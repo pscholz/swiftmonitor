@@ -1,6 +1,6 @@
 import numpy as np
 import astropy.io.fits as pyfits
-import sys 
+import sys
 
 
 SECPERDAY=86400.0
@@ -9,7 +9,7 @@ string_pars = ['PSR','PSRJ','EPHEM','CLK','BINARY','JUMP',\
                'UNITS','TZRSITE','TIMEEPH','T2CMETHOD',\
                'CORRECT_TROPOSPHERE','PLANET_SHAPIRO','DILATEFREQ',\
                'RAJ', 'DECJ']
-  
+
 def calc_freq(MJD, refMJD, *args):
     """
     calc_freq(MJD, refMJD, *args):
@@ -26,7 +26,7 @@ def calc_freq(MJD, refMJD, *args):
     p = np.poly1d((taylor_coeffs * args)[::-1])
     return p(t)
 
-               
+
 def calc_t0(MJD, refMJD, *args):
     """
     calc_t0(MJD, refMJD, *args):
@@ -52,7 +52,7 @@ def write_tempo2_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name='unk', 
         text_file = open(writefile, "w")
         text_file.write("%s %f %s %.2f %s %s\n" % (name,freq,toa,toaerr,obs,flags))
         text_file.close()
-    else:    
+    else:
         print "%s %f %s %.2f %s %s" % (name,freq,toa,toaerr,obs,flags)
 
 def write_princeton_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name=' '*13):
@@ -93,7 +93,7 @@ def calc_phs(MJD, refMJD, *args):
                                      np.cumprod(1.0/(np.arange(float(n))+1.0))))
     p = np.poly1d((taylor_coeffs * nargs)[::-1])
     return p(t)% 1.0
-               
+
 
 class Par:
     def __init__(self,name,value,error=None,fit=None):
@@ -114,9 +114,9 @@ def read_parfile(parfn):
             continue
         if len(split) == 1: #has no value
             continue
-            
+
         value = split[1] if split[0] in string_pars else float(split[1])
-        
+
         if len(split) == 2:
             pars[split[0]] = Par(split[0],value)
         elif len(split) == 3:
@@ -132,7 +132,7 @@ def read_parfile(parfn):
 def energy2chan(E, scope='swift'):
     """Takes a given Energy or array of Energies in keV, and converts them
        into the channel of either the 'PI' or 'PHA' fits column.
-       INPUTS: 
+       INPUTS:
               E - energy or energies to convert
               scope - which telescope to use (default 'swift')
        OUTPUTS:
@@ -146,28 +146,28 @@ def energy2chan(E, scope='swift'):
         sys.stderr.write('Warning: scope not found, assuming channels!\n')
         chans = E
     return chans
-  
 
-def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False):
+
+def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False, aware_no_filt=False):
     """Given a FITS file, this will read the reference epochs,
        and convert MET into MJD
        INPUTS:
               evtname - name of FITS file to read
        OUTPUTS:
-             t - Event arrival times in Modified Julian Dates    
+             t - Event arrival times in Modified Julian Dates
              if  give_t_E: - E - Energy of phases
-       
+
     """
     fits = pyfits.open(evtname)
     t = fits[1].data['time']
-    t = t 
+    t = t
     t = t / 86400.0
 
     try:
         t = t + fits[1].header['MJDREFI'] + fits[1].header['MJDREFF']
- 
+
     except (KeyError):
-        t = t + fits[1].header['MJDREF'] 
+        t = t + fits[1].header['MJDREF']
 
     if "PI" in fits[1].columns.names:
       Echans = fits[1].data['PI']
@@ -188,7 +188,8 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False):
         PI_max = energy2chan(Emax, scope)
         t = t[(Echans < PI_max)]
     else:
-        sys.stderr.write('No Energy Filter\n')
+        if aware_no_filt!=True:
+            sys.stderr.write('No Energy Filter\n')
 
     fits.close()
     if give_t_E:
@@ -201,10 +202,10 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False):
             Echans = Echans[(Echans > PI_min)]
         elif Emax:
             PI_max = energy2chan(Emax, scope)
-            Echans = Echans[(Echans < PI_max)] 
+            Echans = Echans[(Echans < PI_max)]
         return t, Echans
-    else:    
-        return t  
+    else:
+        return t
 
 def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None, give_t_E=False):
     """Given a FITS file and a parfile, this will read the reference epochs,
@@ -212,17 +213,17 @@ def fits2phase(fits_fn, par_fn, scope='swift',Emin=None, Emax=None, give_t_E=Fal
        INPUTS:
            fits_fn - name of FITS file to read
        OUTPUTS:
-           phase - Pulsar phase, from 0-1.     
-       
+           phase - Pulsar phase, from 0-1.
+
     """
     if  give_t_E:
         t, E = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope, give_t_E=True)
-    else:    
-        t = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope, give_t_E=False)    
+    else:
+        t = fits2times(fits_fn,Emin=Emin,Emax=Emax,scope=scope, give_t_E=False)
     phases = times2phases(t, par_fn)
     if  give_t_E:
         return phases, E
-    else:   
+    else:
         return phases
 
 
@@ -233,24 +234,24 @@ def fold_fits(fits_fn, par_fn, nbins=32, scope='swift', Emin=None, Emax=None):
            fits_fn - name of FITS file to read
        OUTPUTS:
            bins - the left bin edges for each bin
-           folded - the number of events in each bin  
-       
+           folded - the number of events in each bin
+
     """
     phases = fits2phase(fits_fn, par_fn, scope=scope, Emin=Emin, Emax=Emax)
 
     return fold_phases(phases, nbins=nbins)
 
 def fold_phases(phases, nbins=32):
-    """Given list of phase (e.g. from fits2phases), this will bin them 
+    """Given list of phase (e.g. from fits2phases), this will bin them
        into a histogram with nbins between 0 and 1.
        INPUTS:
            phases - a list or array of phases
        OUTPUTS:
            bins - the left bin edges for each bin
-           folded - the number of events in each bin  
+           folded - the number of events in each bin
     """
 
-    bins = np.linspace(0,1,nbins+1) # add an extra bin for np.histogram's 
+    bins = np.linspace(0,1,nbins+1) # add an extra bin for np.histogram's
                                     # rightmost limit
     folded = np.histogram(phases,bins)[0]
 
@@ -261,10 +262,10 @@ def times2phases(t, par_fn):
        and frequency parameters, and convert into phases
        INPUTS:
            t -an array of photon arrival times in MJD
-           par_fn - 
+           par_fn -
        OUTPUTS:
-           phase - Pulsar phase, from 0-1.     
-       
+           phase - Pulsar phase, from 0-1.
+
     """
     par = read_parfile(par_fn)
 
@@ -272,19 +273,19 @@ def times2phases(t, par_fn):
 
     for i in range(12):
         fdot_name = 'F' + str(i+1)
-        if fdot_name in par.keys():  
+        if fdot_name in par.keys():
             phs_args.append(par[fdot_name].value)
         else:
             phs_args.append(0.0)
 
-    phases = calc_phs(*phs_args) 
+    phases = calc_phs(*phs_args)
     return phases
-    
-def events_from_binned_profile(profile): 
+
+def events_from_binned_profile(profile):
     binsize = 1.0 / len(profile)
     phases = np.array([])
     for i,counts in enumerate(profile):
-      phases = np.append(phases, np.random.rand(counts)*binsize + i*binsize) 
+      phases = np.append(phases, np.random.rand(counts)*binsize + i*binsize)
     return phases
 
 def randomvariate(pdf,n=1000,xmin=0,xmax=1,zero_min=True):
@@ -297,79 +298,79 @@ def randomvariate(pdf,n=1000,xmin=0,xmax=1,zero_min=True):
     Output: array of random values drawn from input PDF
   """
 
-  # Calculate the minimal and maximum values of the PDF in the desired interval. 
-  x = np.linspace(xmin,xmax,1000)  
-  y = pdf(x)  
+  # Calculate the minimal and maximum values of the PDF in the desired interval.
+  x = np.linspace(xmin,xmax,1000)
+  y = pdf(x)
   pmin = 0 if zero_min else y.min()
-  pmax = y.max()  
+  pmax = y.max()
 
   x = np.random.uniform(xmin,xmax,n)
   y = np.random.uniform(pmin,pmax,n)
 
-  reject = True 
+  reject = True
   while np.any(reject):
     reject = y>pdf(x)
-    x[reject] = np.random.uniform(xmin,xmax,len(reject))  
-    y[reject] = np.random.uniform(pmin,pmax,len(reject)) 
+    x[reject] = np.random.uniform(xmin,xmax,len(reject))
+    y[reject] = np.random.uniform(pmin,pmax,len(reject))
 
   return x
 
-def randomvariate_old(pdf,n=1000,xmin=0,xmax=1):  
-  """  
-  Rejection method for random number generation  
-  ===============================================  
-  Uses the rejection method for generating random numbers derived from an arbitrary   
-  probability distribution. For reference, see Bevington's book, page 84. Based on  
-  rejection*.py.  
-    
-  Usage:  
-  >>> randomvariate(P,N,xmin,xmax)  
-   where  
-   P : probability distribution function from which you want to generate random numbers  
-   N : desired number of random values  
-   xmin,xmax : range of random numbers desired  
-     
-  Returns:   
-   the sequence (ran,ntrials) where  
-    ran : array of shape N with the random variates that follow the input P  
-    ntrials : number of trials the code needed to achieve N  
-    
-  Here is the algorithm:  
-  - generate x' in the desired range  
-  - generate y' between Pmin and Pmax (Pmax is the maximal value of your pdf)  
-  - if y'<P(x') accept x', otherwise reject  
-  - repeat until desired number is achieved  
-    
-  Rodrigo Nemmen  
-  Nov. 2011  
-  """  
-  # Calculates the minimal and maximum values of the PDF in the desired  
-  # interval. The rejection method needs these values in order to work  
-  # properly.  
-  x=np.linspace(xmin,xmax,1000)  
-  y=pdf(x)  
-  #pmin=y.min()  
+def randomvariate_old(pdf,n=1000,xmin=0,xmax=1):
+  """
+  Rejection method for random number generation
+  ===============================================
+  Uses the rejection method for generating random numbers derived from an arbitrary
+  probability distribution. For reference, see Bevington's book, page 84. Based on
+  rejection*.py.
+
+  Usage:
+  >>> randomvariate(P,N,xmin,xmax)
+   where
+   P : probability distribution function from which you want to generate random numbers
+   N : desired number of random values
+   xmin,xmax : range of random numbers desired
+
+  Returns:
+   the sequence (ran,ntrials) where
+    ran : array of shape N with the random variates that follow the input P
+    ntrials : number of trials the code needed to achieve N
+
+  Here is the algorithm:
+  - generate x' in the desired range
+  - generate y' between Pmin and Pmax (Pmax is the maximal value of your pdf)
+  - if y'<P(x') accept x', otherwise reject
+  - repeat until desired number is achieved
+
+  Rodrigo Nemmen
+  Nov. 2011
+  """
+  # Calculates the minimal and maximum values of the PDF in the desired
+  # interval. The rejection method needs these values in order to work
+  # properly.
+  x=np.linspace(xmin,xmax,1000)
+  y=pdf(x)
+  #pmin=y.min()
   pmin=0
-  pmax=y.max()  
-   
-  # Counters  
-  naccept=0  
-  ntrial=0  
-   
-  # Keeps generating numbers until we achieve the desired n  
-  ran=[] # output list of random numbers  
-  while naccept<n:  
-    x=np.random.uniform(xmin,xmax) # x'  
-    y=np.random.uniform(pmin,pmax) # y'  
-   
-    if y<pdf(x):  
-      ran.append(x)  
-      naccept=naccept+1  
-    ntrial=ntrial+1  
-    
-  ran=np.asarray(ran)  
-    
-  return ran,ntrial  
+  pmax=y.max()
+
+  # Counters
+  naccept=0
+  ntrial=0
+
+  # Keeps generating numbers until we achieve the desired n
+  ran=[] # output list of random numbers
+  while naccept<n:
+    x=np.random.uniform(xmin,xmax) # x'
+    y=np.random.uniform(pmin,pmax) # y'
+
+    if y<pdf(x):
+      ran.append(x)
+      naccept=naccept+1
+    ntrial=ntrial+1
+
+  ran=np.asarray(ran)
+
+  return ran,ntrial
 
 def h_test(phases, max_harmonic=20):
     """Apply the H test for uniformity on [0,1).
@@ -403,7 +404,7 @@ def h_test(phases, max_harmonic=20):
     de Jager, O. C., Swanepoel, J. W. H, and Raubenheimer, B. C., "A
     powerful test for weak periodic signals of unknown light curve shape
     in sparse data", Astron. Astrophys. 221, 180-190, 1989.
-    
+
     Updated false alarm rate  to match Jager, Busching 2010
     """
     if len(phases)==0:
@@ -417,31 +418,31 @@ def h_test(phases, max_harmonic=20):
         Hcand = (Zm2 - 4*np.arange(1,max_harmonic+1) + 4)
         M = np.argmax(Hcand)+1
         H = Hcand[M-1]
-        fpp =np.exp(-0.4*H) 
+        fpp =np.exp(-0.4*H)
     return (H, M, fpp)
 
 def h_test_obs(fits_fn, par_fn):
-    '''Given a fits file name, and a par filename, will return the H-score 
-       and false alarm probability. 
+    '''Given a fits file name, and a par filename, will return the H-score
+       and false alarm probability.
     '''
     par = read_parfile(par_fn)
     times = fits2times(fits_fn)
     fits=pyfits.open(fits_fn)
     phs_args = [ times, par['PEPOCH'].value, par['F0'].value ]
-    
+
     for i in range(12):
         fdot_name = 'F' + str(i+1)
-        if fdot_name in par.keys():  
+        if fdot_name in par.keys():
             phs_args.append(par[fdot_name].value)
         else:
             phs_args.append(0.0)
 
-    phases = calc_phs(*phs_args) 
+    phases = calc_phs(*phs_args)
     H, M, fpp=h_test(phases)
-    
+
     return (H, M, fpp)
-    
-    
+
+
 class SwiftMonError(Exception):
     """
     A generic exception to be thrown by the swiftmonitor software.
