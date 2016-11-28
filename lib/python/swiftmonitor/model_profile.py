@@ -104,7 +104,7 @@ class Fourier_Model(Profile_Model):
 
         norm = integrate.quad(icomp, 0, 1)
         prof_mod = lambda x: np.interp(x%1, phi, icomps) / norm[0]
-
+        
         #plt.step(phase,grand,where='mid')
         #plt.errorbar(phase,grand,err,fmt='bo')
         #plt.plot(phi,icomp(phi))
@@ -411,7 +411,6 @@ class Lin_Interp(Profile_Model):
     area = integrate.trapz(grand, x=phase)
     grand = grand/area
     prof_mod = lambda x: np.interp(x%1, phase, grand)
-
     self.prof_mod = prof_mod
 
     return prof_mod

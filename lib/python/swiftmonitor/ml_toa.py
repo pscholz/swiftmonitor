@@ -35,7 +35,16 @@ def calc_prob(phases, offset, prof_mod):
 
     loglike = np.sum( np.log(probs) )
     return loglike
+    
+def calc_prob_bright(folded, offset, prof_mod):
+    """
+    Calculates the probability of an offset given a profile model and a folded profile/bins.
+    """
+    probs = np.multiply(folded[0], np.log(prof_mod( folded[1][1:] - offset )))
 
+    loglike = np.sum(probs)
+    return loglike
+    
 class PSRpar:
     """
     This class contains all the relevant information for
@@ -195,7 +204,7 @@ def correct_model(phases,prof_mod):
 
 
 def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
-                    gauss_err=False, bg_counts=0, debug=False):
+                    gauss_err=False, bg_counts=0, debug=False, bright = False):
     """
     Calculate an offset between the observation pulse profile and the template pulse profile.
        This is done using the raw events (as phases) and a continuous model of the template
@@ -218,8 +227,14 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
     offsets = np.append(offsets,1.0)
 
     starttime = time.time()
+    if bright:
+        folded = np.histogram(phases, 1024)
+        sys.stderr.write('WARNING: BRIGHT ON!')
     for offset in offsets:
-        prob =  calc_prob(phases, offset, prof_mod)
+        if bright:
+            prob = calc_prob_bright(folded, offset, prof_mod)
+        else:    
+            prob =  calc_prob(phases, offset, prof_mod)
         probs.append(prob)
     calcprobtime += time.time() - starttime
 
@@ -252,12 +267,12 @@ def calc_toa_offset(phases, prof_mod, sim_err=False, no_err=False,
     return maxoff, error
 
 def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
-               frequency=None, epoch=None,  sim=False, bg_counts=0, Emin=None,
+               frequency=None,fdot=None, epoch=None,  sim=False, bg_counts=0, Emin=None,
                Emax=None, gauss_err=False, tempo2=False, debug=False, split_n_days=None,
-               correct_pf=False, split_num=None, split_orbits=False, writefile=False):
+               correct_pf=False, split_num=None, split_orbits=False,split_photons=False, writefile=False, bright=False):
 
     print_timings = False # if want to print summary of runtime
-    if split_n_days==None:
+    if split_n_days==None and split_photons==None:
         fits = pyfits.open(fits_fn)
         t = smu.fits2times(fits_fn, scope=scope, Emin=Emin, Emax=Emax)
 
@@ -282,7 +297,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
         par = lambda: None
         par.epoch = epoch
         par.f0 = frequency
-        par.fdots = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+        par.fdots = [fdot,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
     else:
         par = PSRpar(parfile)
 
@@ -306,6 +321,27 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
             ts = np.split(t[:-remainder],split_num)
         else:
             ts = np.split(t,split_num)
+            
+    elif split_photons:
+        t=np.zeros(0)
+        fits_files = np.loadtxt(fits_fn, dtype='S')
+        try:
+            for fit in fits_files:
+                t = np.append(t, smu.fits2times(fit, scope=scope, Emin=Emin, Emax=Emax))
+        except (Exception):
+             t = np.append(t, smu.fits2times(fits_files.tostring(), scope=scope, Emin=Emin, Emax=Emax))        
+        t.sort()
+        n_toas = len(t)/split_photons
+        if n_toas == 0:
+           ts = np.split(t,1)
+        else:    
+            remainder = len(t) % n_toas
+            if remainder:
+                sys.stderr.write("Warning: Number of events in %s not divisable by %d. " \
+                                 "Dropping last %d events.\n" % (obsid, n_toas, remainder))
+                ts = np.split(t[:-remainder],n_toas)
+            else:
+                ts = np.split(t,n_toas)
 
     elif split_n_days:
         t=np.zeros(0)
@@ -348,7 +384,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
 
         if correct_pf:
             old_model, new_model, corr_folded = correct_model(phases,prof_mod)
-        maxoff, error = calc_toa_offset(phases,prof_mod.prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug)
+        maxoff, error = calc_toa_offset(phases,prof_mod.prof_mod,sim_err=sim,bg_counts=bg_counts, gauss_err=gauss_err, debug=debug, bright=bright)
         midtime = (t[-1]+t[0])/2.0
         p_mid = 1.0/smu.calc_freq(midtime, par.epoch, par.f0, par.fdots[0], par.fdots[1], par.fdots[2], par.fdots[3],
                                         par.fdots[4], par.fdots[5], par.fdots[6], par.fdots[7], par.fdots[8])
@@ -373,7 +409,7 @@ def get_ml_toa(fits_fn, prof_mod, parfile, scope='swift', print_offs=None,
             offs_file.write(fits_fn + "\t" + str(maxoff) + "\t" + str(error) + "\n")
             #print obsid,"\tOffset:",maxoff,"+/-",error
             offs_file.close()
-        if split_n_days==None:
+        if split_n_days==None and split_photons==False:
             fits.close()
 
 

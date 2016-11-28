@@ -650,18 +650,27 @@ def make_coord_regions(event_file, source_rad, back_rad, RA, DEC, source_fn='sou
     back_reg.write(back_fn)
 
     
-def make_pileup_regions(event_file, source_rad, back_rad, RA, DEC, source_fn='source.reg', back_fn='back.reg'):
+def make_pileup_regions(event_file, source_rad, back_rad, RA, DEC, pile_up_rad=3., source_fn='source.reg', back_fn='back.reg'):
     """
     Create source and background .reg files. Source is an annulus of radius=source_rad and ...
     """
 
-    source_reg = region('annulus', [ 10, source_rad ], [RA, DEC], coords = 'fk5')
+    source_reg = region('annulus', [ pile_up_rad, source_rad ], [RA, DEC], coords = 'fk5')
     back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [RA, DEC], coords = 'fk5')
 
     source_reg.write(source_fn)
     back_reg.write(back_fn)
 
+def make_pileup_regions_centroid(event_file, source_rad, back_rad, RA, DEC, pile_up_rad=3., source_fn='source.reg', back_fn='back.reg', chanlow=30, chanhigh=1023):
+    """
+    Create source and background .reg files. Source is an annulus of radius=source_rad and ...
+    """
+    x, y = find_centroid(event_file, chanlow=chanlow, chanhigh=chanhigh)
+    source_reg = region('annulus', [ pile_up_rad, source_rad ], [x,y])
+    back_reg = region('annulus', [ 100 - back_rad, 100 + back_rad ], [x,y])
 
+    source_reg.write(source_fn)
+    back_reg.write(back_fn)
   
     
 def correct_backscal(source_file, back_file, source_reg_fn, back_reg_fn):
