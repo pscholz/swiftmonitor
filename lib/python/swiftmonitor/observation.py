@@ -283,7 +283,7 @@ class Observation:
     Preprocess the raw unfiltered data using xrtpipeline.
     """
     self.injest_auxil()
-    cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s createexpomap=yes %s' %\
+    cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s clobber=yes createexpomap=yes %s' %\
           (raw_dir, out_dir, self.obsid, xrtpipeline_args)
     if self.ra and self.dec:
         cmd += ' srcra=%s srcdec=%s' % (self.ra, self.dec)
@@ -627,16 +627,16 @@ class Observation:
 
     self.spec_fit = self.obsroot + "_xspecfit.txt"
 
-  def extract_region(self):
+  def extract_region(self, suffix ='_bary_'):
     """
     Extract events from the source and background region files.
     """
 
     print "Extracting events for default region...\n"
-    self.extract(self.obsroot + "_bary_reg",infile=self.path + self.baryfile, events=True, region=self.path + self.src_region)  
-    self.extract(self.obsroot + "_bary_bgreg",infile=self.path + self.baryfile, events=True, region=self.path + self.back_region)  
-    self.reg_obsfile = self.obsroot + "_bary_reg.evt"
-    self.bgreg_obsfile = self.obsroot + "_bary_bgreg.evt"
+    self.extract(self.obsroot + suffix+"reg",infile=self.path + self.baryfile, events=True, region=self.path + self.src_region)  
+    self.extract(self.obsroot + suffix+"bgreg",infile=self.path + self.baryfile, events=True, region=self.path + self.back_region)  
+    self.reg_obsfile = self.obsroot + suffix+"reg.evt"
+    self.bgreg_obsfile = self.obsroot + suffix+"bgreg.evt"
 
   def get_countrates(self):
     fits = pyfits.open(self.path + self.reg_obsfile)
