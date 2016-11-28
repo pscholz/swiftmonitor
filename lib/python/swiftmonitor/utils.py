@@ -142,11 +142,17 @@ def energy2chan(E, scope='swift'):
         chans = E * 100.0
     elif scope == 'nustar':
         chans = (E - 1.6) / 0.04
+    elif scope == 'chandra':
+        chans = (E/0.0146) + 1    
     elif scope == 'xmm':
         chans = E*1000.   
     elif scope == 'fermi':
         chans = E*1000.
-            
+    elif scope == 'xte' or 'rxte':
+       xte_scale = np.loadtxt('/homes/borgii/rarchiba/swiftmonitor/XTE_ENERGY_CHANNEL_mod',
+                        usecols=[0, -1]).T
+       keVtoxtechan = lambda x:np.interp(x, xte_scale[1], xte_scale[0])
+       chans = keVtoxtechan(E)  
     else:
         sys.stderr.write('Warning: scope not found, assuming channels!\n')
         chans = E
@@ -179,6 +185,8 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False, aware
 
     if "PI" in fits[1].columns.names:
       Echans = fits[1].data['PI']
+    elif "pi" in fits[1].columns.names:
+      Echans = fits[1].data['pi']  
     elif "PHA" in fits[1].columns.names:
       Echans = fits[1].data['PHA']
     elif "ENERGY" in fits[1].columns.names:
@@ -290,6 +298,31 @@ def times2phases(t, par_fn):
 
     phases = calc_phs(*phs_args)
     return phases
+    
+def times2freqs(t, par_fn, nuder=0):
+    """Given an array of times and a parfile, this will read the reference epoch
+       and frequency parameters, and convert into phafrequencies at those epochs
+       INPUTS:
+           t -an array of photon arrival times in MJD
+           par_fn - tempo(2) parfile
+           nudir - derivative of freq to return
+       OUTPUTS:
+           freqs - pulsar frequency der in Hz/s^{nudir}
+
+    """
+    par = read_parfile(par_fn)
+
+    phs_args = [ t, par['PEPOCH'].value] 
+
+    for i in range(nuder, 12):
+        fdot_name = 'F' + str(i)
+        if fdot_name in par.keys():
+            phs_args.append(par[fdot_name].value)
+        else:
+            phs_args.append(0.0)
+
+    freqs = calc_freq(*phs_args)
+    return freqs    
 
 def events_from_binned_profile(profile):
     binsize = 1.0 / len(profile)
