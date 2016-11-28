@@ -76,6 +76,10 @@ parser.add_option("--Ntoas",
 		  dest="ntoas", type='int',
 		  help="Number of TOAs to extract per observation.",
 		  default=None)
+parser.add_option("--Nphotons",
+		  dest="nphotons", type='int',
+		  help="Number of photons to use per TOA.",
+		  default=None)		  
 parser.add_option("--split_days",
 		  dest="split_n_days", type='float',
 		  help="If given a float, will read in multiple fits files and extract one TOA per split_n_days days. Note: must provide list of files with -l option",
@@ -84,6 +88,10 @@ parser.add_option("--orbits",
 		  dest="orbits", action='store_true',
 		  help="Extract one TOA per orbit.",
 		  default=False)
+parser.add_option("--bright",
+		  dest="bright", action='store_true',
+		  help="If true, bin profile to save CPU time.",
+		  default=False)		  
 parser.add_option("--tempo2",
 		  dest="tempo2", action='store_true',
 		  help="Print TOA in tempo2 format.",
@@ -107,7 +115,7 @@ if options.periodogram:
     ml_toa.get_ml_toa(fitsfile, prof_mod, None, scope=options.scope, bg_counts=options.bg_counts, \
                       print_offs=options.offsets, frequency=frequency[i], epoch=epoch[i], sim=options.sim, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err, tempo2=options.tempo2, \
-                      debug=options.plot_dist, correct_pf=options.correct_pf, split_orbits=options.orbits, split_num=options.ntoas)
+                      debug=options.plot_dist, correct_pf=options.correct_pf, split_orbits=options.orbits, split_num=options.ntoas, split_photons=options.nphotons, bright = options.bright)
 
 elif options.list and options.split_n_days:
     ml_toa.get_ml_toa(options.list, prof_mod, options.parfile, scope=options.scope, \
@@ -115,8 +123,19 @@ elif options.list and options.split_n_days:
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err,
                       tempo2=options.tempo2, debug=options.plot_dist,
                       correct_pf=options.correct_pf,  split_n_days=options.split_n_days,
-                      split_orbits=options.orbits, split_num=options.ntoas,
-                      writefile=options.writefile)
+                      split_orbits=options.orbits, 
+                      split_num=options.ntoas, split_photons=options.nphotons,
+                      writefile=options.writefile,bright = options.bright)
+                      
+elif options.list and options.nphotons:
+    ml_toa.get_ml_toa(options.list, prof_mod, options.parfile, scope=options.scope, \
+                      print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
+                      Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err,
+                      tempo2=options.tempo2, debug=options.plot_dist,
+                      correct_pf=options.correct_pf,  split_n_days=options.split_n_days,
+                      split_orbits=options.orbits, 
+                      split_num=options.ntoas, split_photons=options.nphotons,
+                      writefile=options.writefile, bright = options.bright)                      
 
 else:
   if options.list:
@@ -125,11 +144,15 @@ else:
     flist = args[0:]
 
   for fitsfile in flist:
-    ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, scope=options.scope, \
+    try:
+        ml_toa.get_ml_toa(fitsfile, prof_mod, options.parfile, scope=options.scope, \
                       print_offs=options.offsets, sim=options.sim, bg_counts=options.bg_counts, \
                       Emin=options.emin, Emax=options.emax, gauss_err=options.gauss_err,
                       tempo2=options.tempo2, debug=options.plot_dist,
                       correct_pf=options.correct_pf,  split_n_days=options.split_n_days,
                       split_orbits=options.orbits, split_num=options.ntoas,
-                      writefile=options.writefile)
+                      split_photons=options.nphotons,
+                      writefile=options.writefile, bright = options.bright)
+    except(IndexError):    
+        continue               
 
