@@ -63,7 +63,7 @@ bins, folded = smu.fold_phases(phases,nbins=options.nbins)
 if options.H_test:
     H, Nharm, Hfpp=smu.h_test(phases)
     prof_mod = model_profile.makeProfileModel("fourier",
-               np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
+               np.array([np.arange(0, len(folded)),folded]).T, n=Nharm)
 
 ax=plt.subplot(111)
      
@@ -79,7 +79,7 @@ plt.errorbar(plot_bins+0.5/options.nbins,plot_fold,np.sqrt(plot_fold),fmt='ko')
 if options.H_test:
     H, Nharm, Hfpp=smu.h_test(phases)
     prof_mod = model_profile.makeProfileModel("fourier", \
-               np.array([np.arange(0, len(folded)),folded]).T, nharm=Nharm)
+               np.array([np.arange(0, len(folded)),folded]).T, n=Nharm)
     x = np.linspace(0, options.ncycles, 10*options.ncycles*options.nbins)
     plt.plot(x,prof_mod.prof_mod(np.roll(x,5))*np.mean(folded), lw=2, color='r') 
     plt.text(0.99, 0.99, "$N_{harm}$=%d\n$P_{fa}$=%.2E" % (Nharm, Hfpp), 
