@@ -97,7 +97,7 @@ parser.add_option("--writefile",
 
 profile = np.loadtxt(options.profile)
 
-prof_mod = model_profile.makeProfileModel(options.model, profile, nharm=options.num_harmonics)
+prof_mod = model_profile.makeProfileModel(options.model, profile, n=options.num_harmonics)
 if options.tempo2:
     print("FORMAT 1")
 if options.periodogram:
