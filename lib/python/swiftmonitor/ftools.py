@@ -3,7 +3,7 @@ import astropy.io.fits as pyfits
 import numpy as np
 import subprocess
 import re
-from swiftmonitor import utils
+from swiftmonitor.utils import execute_cmd, region
 
 def barycentre(infile, outfile, orbitfile, RA=None, Dec=None, clockfile='CALDB'):
     """
@@ -20,7 +20,7 @@ def barycentre(infile, outfile, orbitfile, RA=None, Dec=None, clockfile='CALDB')
       cmd = 'barycorr infile=%s outfile=%s orbitfiles=%s clobber=yes clockfile=%s' %\
             (infile, outfile, orbitfile, clockfile)
       
-    utils.execute_cmd(cmd)
+    execute_cmd(cmd)
 
 
 def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=None,\
@@ -80,7 +80,7 @@ def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=Non
 
     args += 'clobber=yes'
     cmd = 'extractor ' + args 
-    utils.execute_cmd(cmd)
+    execute_cmd(cmd)
 
 def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True, chanlow=0,chanhigh=1023):
     """
@@ -139,7 +139,7 @@ def skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, time):
     cmd += ' attfile= ' + attfile
     cmd += ' time=' + str(time)
 
-    output = utils.execute_cmd(cmd,stdout=subprocess.PIPE)[0]
+    output = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
 
     det_result = re.compile("DET.*\[", re.M).search(output)
     sky_result = re.compile("SKY.*\[", re.M).search(output)
@@ -250,7 +250,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
     if offaxis_angle:
       cmd += " offaxis=%f" % (offaxis_angle)
 
-    xrtmkarf_out = utils.execute_cmd(cmd,stdout=subprocess.PIPE)[0]
+    xrtmkarf_out = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
     print xrtmkarf_out
 
     rmf_re = re.compile("Processing \'(?P<rmf>.*)\.rmf\' CALDB file\.")
@@ -271,7 +271,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
 
     cmd = "grppha infile=temp_source.pha outfile=%s_source.pha clobber=yes comm=\"%s\""%\
           (outroot, grppha_comm)
-    utils.execute_cmd(cmd)
+    execute_cmd(cmd)
 
     os.remove('temp_source.pha')
 
@@ -333,13 +333,13 @@ def add_spectra(spec_list, outroot, grouping=None):
     f.close()
 
     cmd = "addarf @tmp_arfs.list out_ARF=%s clobber=yes" % (outroot + '.arf')
-    utils.execute_cmd(cmd)
+    execute_cmd(cmd)
 
     cmd = "mathpha expr=%s units=C outfil=temp_final_spec.bak exposure=CALC areascal='%%' backscal='%%' ncomment=0 clobber=yes" % (back_math_expr)
-    utils.execute_cmd(cmd)
+    execute_cmd(cmd)
 
     cmd = "mathpha expr=%s units=C outfil=temp_final_spec.pha exposure=CALC areascal='%%' backscal='%%' ncomment=0 clobber=yes" % (src_math_expr)
-    utils.execute_cmd(cmd)
+    execute_cmd(cmd)
 
     #Run grppha to change the auxfile keys and to do grouping if needed
     grppha_comm = "chkey backfile %s.bak & chkey ancrfile %s.arf & chkey respfile %s"%\
@@ -350,7 +350,7 @@ def add_spectra(spec_list, outroot, grouping=None):
 
     cmd = "grppha infile=temp_final_spec.pha outfile=%s.pha clobber=yes comm=\"%s\""%\
           (outroot, grppha_comm)
-    utils.execute_cmd(cmd)
+    execute_cmd(cmd)
 
     shutil.copy('temp_final_spec.bak', outroot + '.bak')
 
@@ -449,7 +449,7 @@ def split_orbits(infile):
             extract(outroot, infile=infile, events=True, gtifile=tempgti_fn)
 
             cmd = "fappend %s[BADPIX] %s.evt" % (infile, outroot)
-            utils.execute_cmd(cmd)
+            execute_cmd(cmd)
             outfiles.append(outroot + '.evt')
 
             os.remove(tempgti_fn)
@@ -522,46 +522,7 @@ def make_expomap(infile, attfile, hdfile, stemout=None, outdir=None):
     else:
         cmd += "stemout=%s outdir=%s" % (os.path.splitext(inf_base)[0], inf_path)
     
-    utils.execute_cmd(cmd)
-
-class region:
-    """
-    Class containing info from a region file.
-      shape(loc[0],loc[1],dim[0],dim[1],...)
-    """
-    
-    def __init__(self, shape, dimensions, location, coords='physical'):
-        self.dim = dimensions
-        self.shape = shape 
-        self.loc = location
-        self.coords = coords
-        self.region_str = self.get_region_str()
-
-    def get_region_str(self):
-        # TODO: add other shapes and assert that shape is available
-        if self.coords.startswith('physical'):
-            if self.shape is 'circle':
-                region_str = 'circle(%s,%s,%d)' % (self.loc[0], self.loc[1], self.dim[0])
-            if self.shape is 'annulus':
-                region_str = 'annulus(%s,%s,%d,%d)' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
-        if self.coords.startswith('fk5'):
-            if self.shape is 'circle':
-                region_str = 'circle(%s,%s,%d\")' % (self.loc[0], self.loc[1], self.dim[0])
-            if self.shape is 'annulus':
-                region_str = 'annulus(%s,%s,%d\",%d\")' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])      
-        return region_str
-
-    def write(self,output_fn):
-        f = open(output_fn, 'w')
-        region = '# Region file format: DS9 version 4.1\nglobal color=green dashlist=8 3 width=1 font="helvetica 10 normal"'\
-             + ' select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n'
-        region += self.coords + "\n"
-        region += self.region_str
-        f.write(region)
-        f.close()
-    
-    def __str__(self):
-        return self.shape + ":\nDimension: " + str(self.dim) + "\nLocation: " + str(self.loc)
+    execute_cmd(cmd)
 
 def read_region_file(region_fn):
     """
@@ -638,8 +599,7 @@ def make_pileup_regions_centroid(event_file, source_rad, back_rad, RA, DEC, pile
 
     source_reg.write(source_fn)
     back_reg.write(back_fn)
-  
-    
+
 def correct_backscal(source_file, back_file, source_reg_fn, back_reg_fn):
     """
     Corrects the BACKSCAL keyword in the source_file and back_file spectra.
@@ -682,7 +642,7 @@ def quzcif(codename, date, time, mission='SWIFT', instrument='XRT', detector='-'
     cmd += " date=" + date
     cmd += " time=" + time
 
-    quzcif_out = utils.execute_cmd(cmd, stdout=subprocess.PIPE)[0]
+    quzcif_out = execute_cmd(cmd, stdout=subprocess.PIPE)[0]
 
     outlist = []
     extlist = []

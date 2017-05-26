@@ -519,6 +519,45 @@ def execute_cmd(cmd, stdout=sys.stdout, stderr=sys.stderr):
 
     return (stdoutdata, stderrdata)
 
+class region:
+    """
+    Class containing info from a region file.
+      shape(loc[0],loc[1],dim[0],dim[1],...)
+    """
+    
+    def __init__(self, shape, dimensions, location, coords='physical'):
+        self.dim = dimensions
+        self.shape = shape 
+        self.loc = location
+        self.coords = coords
+        self.region_str = self.get_region_str()
+
+    def get_region_str(self):
+        # TODO: add other shapes and assert that shape is available
+        if self.coords.startswith('physical'):
+            if self.shape is 'circle':
+                region_str = 'circle(%s,%s,%d)' % (self.loc[0], self.loc[1], self.dim[0])
+            if self.shape is 'annulus':
+                region_str = 'annulus(%s,%s,%d,%d)' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
+        if self.coords.startswith('fk5'):
+            if self.shape is 'circle':
+                region_str = 'circle(%s,%s,%d\")' % (self.loc[0], self.loc[1], self.dim[0])
+            if self.shape is 'annulus':
+                region_str = 'annulus(%s,%s,%d\",%d\")' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])      
+        return region_str
+
+    def write(self,output_fn):
+        f = open(output_fn, 'w')
+        region = '# Region file format: DS9 version 4.1\nglobal color=green dashlist=8 3 width=1 font="helvetica 10 normal"'\
+             + ' select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n'
+        region += self.coords + "\n"
+        region += self.region_str
+        f.write(region)
+        f.close()
+    
+    def __str__(self):
+        return self.shape + ":\nDimension: " + str(self.dim) + "\nLocation: " + str(self.loc)
+
 class SwiftMonError(Exception):
     """
     A generic exception to be thrown by the swiftmonitor software.

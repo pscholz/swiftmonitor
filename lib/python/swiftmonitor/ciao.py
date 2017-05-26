@@ -2,7 +2,7 @@ import os, sys, time, shutil
 import numpy as np
 import subprocess
 import re
-#from swiftmonitor import utils
+from swiftmonitor.utils import region
 from ciao_contrib.runtool import *
 
 def preprocess(indir,outdir='',root=None,badpixel=True,process_events=True,
@@ -16,6 +16,7 @@ def preprocess(indir,outdir='',root=None,badpixel=True,process_events=True,
         - indir: directory which contains all of the downloaded data files
         - outdir: output directory for reprocessed data files; by default creates
                   a "repro" subdirectory beneath the indir directory
+                  
     Optional Arguments:
         - root: root for output file names. Proper extensions will be attached
         - badpixel: boolean; whether or not to create a new bad pixel file
@@ -36,6 +37,8 @@ def preprocess(indir,outdir='',root=None,badpixel=True,process_events=True,
     
     #args = locals()
     
+    chandra_repro.punlearn()
+    
     chandra_repro.indir = indir
     chandra_repro.outdir = outdir
     chandra_repro.root = root
@@ -49,5 +52,41 @@ def preprocess(indir,outdir='',root=None,badpixel=True,process_events=True,
     chandra_repro.cleanup = cleanup
     chandra_repro.clobber = clobber
     chandra_repro.verbose = verbose
+    
+    #print(chandra_repro)
             
     chandra_repro()
+    
+def find_centroid(event_file):
+    """
+    Finds centroid of the source by using the target's RA and DEC from the level 2 evt file.
+    
+    Arguments:
+        - event_file: the event file to find the centroid of
+    """
+    
+    fits = pyfits.open(event_file)
+    
+    source_ra = fits[1].header['RA_TARG']
+    source_dec = fits[1].header['DEC_TARG']
+    
+    return source_ra,source_dec
+    
+def make_cc_regions(event_file,src_radius_asec=10,bgd_rad_1_asec=20,bgd_rad_2_asec=40,
+                    src_fn='source.reg',bgd_fn='back.reg'):
+    """
+    Creates the source and background region files for a given event file
+    
+    Arguments:
+        - event_file: the event file to create regions for
+    
+    Optional Arguments:
+        - src_radius_asec: the radius of the source region circle, in asec
+        - bgd_radius_1_asec: the inner radius of the background region annulus, in asec
+        - bgd_radius_2_asec: the outer radius of the background region annulus, in asec
+        - src_fn: filename of the source region
+        - bgd_fn: filename of the background region
+    """
+    
+    
+    
