@@ -5,39 +5,6 @@ import subprocess
 import re
 from swiftmonitor import utils
 
-def execute_cmd(cmd, stdout=sys.stdout, stderr=sys.stderr): 
-    """
-    Execute the command 'cmd' after logging the command
-      to STDOUT.  
-
-      stderr and stdout can be sys.stdout/stderr or any file 
-      object to log output to file.
-
-      stdout and stderr are returned if subprocess.PIPE is
-      provided for their input parameters. Otherwise will 
-      return None.
-    """
-    sys.stdout.write("\n'"+cmd+"'\n")
-    sys.stdout.flush()
-
-    pipe = subprocess.Popen(cmd, shell=True, stdout=stdout, stderr=stderr)
-    (stdoutdata, stderrdata) = pipe.communicate()
-
-    retcode = pipe.returncode
-
-    if retcode < 0:
-        raise utils.SwiftMonError("Execution of command (%s) terminated by signal (%s)!" % \
-                                (cmd, -retcode))
-    elif retcode > 0:
-        raise utils.SwiftMonError("Execution of command (%s) failed with status (%s)!" % \
-                                (cmd, retcode))
-    else:
-        # Exit code is 0, which is "Success". Do nothing.
-        pass
-
-    return (stdoutdata, stderrdata)
-
-
 def barycentre(infile, outfile, orbitfile, RA=None, Dec=None, clockfile='CALDB'):
     """
     Barycentre the observation. If not provided a RA and Dec, the RA and Dec from
@@ -53,7 +20,7 @@ def barycentre(infile, outfile, orbitfile, RA=None, Dec=None, clockfile='CALDB')
       cmd = 'barycorr infile=%s outfile=%s orbitfiles=%s clobber=yes clockfile=%s' %\
             (infile, outfile, orbitfile, clockfile)
       
-    execute_cmd(cmd)
+    utils.execute_cmd(cmd)
 
 
 def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=None,\
@@ -113,7 +80,7 @@ def extract(outroot,infile,events=True,image=False,pha=False,lc=False,region=Non
 
     args += 'clobber=yes'
     cmd = 'extractor ' + args 
-    execute_cmd(cmd)
+    utils.execute_cmd(cmd)
 
 def find_centroid(event_file=None,imagefile=None,force_redo=False,use_max=True, chanlow=0,chanhigh=1023):
     """
@@ -172,7 +139,7 @@ def skyradec_to_det(ra, dec, teldeffile, alignfile, attfile, time):
     cmd += ' attfile= ' + attfile
     cmd += ' time=' + str(time)
 
-    output = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
+    output = utils.execute_cmd(cmd,stdout=subprocess.PIPE)[0]
 
     det_result = re.compile("DET.*\[", re.M).search(output)
     sky_result = re.compile("SKY.*\[", re.M).search(output)
@@ -283,7 +250,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
     if offaxis_angle:
       cmd += " offaxis=%f" % (offaxis_angle)
 
-    xrtmkarf_out = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
+    xrtmkarf_out = utils.execute_cmd(cmd,stdout=subprocess.PIPE)[0]
     print xrtmkarf_out
 
     rmf_re = re.compile("Processing \'(?P<rmf>.*)\.rmf\' CALDB file\.")
@@ -304,7 +271,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
 
     cmd = "grppha infile=temp_source.pha outfile=%s_source.pha clobber=yes comm=\"%s\""%\
           (outroot, grppha_comm)
-    execute_cmd(cmd)
+    utils.execute_cmd(cmd)
 
     os.remove('temp_source.pha')
 
@@ -366,13 +333,13 @@ def add_spectra(spec_list, outroot, grouping=None):
     f.close()
 
     cmd = "addarf @tmp_arfs.list out_ARF=%s clobber=yes" % (outroot + '.arf')
-    execute_cmd(cmd)
+    utils.execute_cmd(cmd)
 
     cmd = "mathpha expr=%s units=C outfil=temp_final_spec.bak exposure=CALC areascal='%%' backscal='%%' ncomment=0 clobber=yes" % (back_math_expr)
-    execute_cmd(cmd)
+    utils.execute_cmd(cmd)
 
     cmd = "mathpha expr=%s units=C outfil=temp_final_spec.pha exposure=CALC areascal='%%' backscal='%%' ncomment=0 clobber=yes" % (src_math_expr)
-    execute_cmd(cmd)
+    utils.execute_cmd(cmd)
 
     #Run grppha to change the auxfile keys and to do grouping if needed
     grppha_comm = "chkey backfile %s.bak & chkey ancrfile %s.arf & chkey respfile %s"%\
@@ -383,7 +350,7 @@ def add_spectra(spec_list, outroot, grouping=None):
 
     cmd = "grppha infile=temp_final_spec.pha outfile=%s.pha clobber=yes comm=\"%s\""%\
           (outroot, grppha_comm)
-    execute_cmd(cmd)
+    utils.execute_cmd(cmd)
 
     shutil.copy('temp_final_spec.bak', outroot + '.bak')
 
@@ -482,7 +449,7 @@ def split_orbits(infile):
             extract(outroot, infile=infile, events=True, gtifile=tempgti_fn)
 
             cmd = "fappend %s[BADPIX] %s.evt" % (infile, outroot)
-            execute_cmd(cmd)
+            utils.execute_cmd(cmd)
             outfiles.append(outroot + '.evt')
 
             os.remove(tempgti_fn)
@@ -555,7 +522,7 @@ def make_expomap(infile, attfile, hdfile, stemout=None, outdir=None):
     else:
         cmd += "stemout=%s outdir=%s" % (os.path.splitext(inf_base)[0], inf_path)
     
-    execute_cmd(cmd)
+    utils.execute_cmd(cmd)
 
 class region:
     """
@@ -715,7 +682,7 @@ def quzcif(codename, date, time, mission='SWIFT', instrument='XRT', detector='-'
     cmd += " date=" + date
     cmd += " time=" + time
 
-    quzcif_out = execute_cmd(cmd, stdout=subprocess.PIPE)[0]
+    quzcif_out = utils.execute_cmd(cmd, stdout=subprocess.PIPE)[0]
 
     outlist = []
     extlist = []

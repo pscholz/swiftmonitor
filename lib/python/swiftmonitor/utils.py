@@ -1,6 +1,8 @@
-import numpy as np
+import os, sys, time, shutil
 import astropy.io.fits as pyfits
-import sys
+import numpy as np
+import subprocess
+import re
 
 
 SECPERDAY=86400.0
@@ -485,6 +487,37 @@ def h_test_obs(fits_fn, par_fn):
 
     return (H, M, fpp)
 
+def execute_cmd(cmd, stdout=sys.stdout, stderr=sys.stderr): 
+    """
+    Execute the command 'cmd' after logging the command
+      to STDOUT.  
+
+      stderr and stdout can be sys.stdout/stderr or any file 
+      object to log output to file.
+
+      stdout and stderr are returned if subprocess.PIPE is
+      provided for their input parameters. Otherwise will 
+      return None.
+    """
+    sys.stdout.write("\n'"+cmd+"'\n")
+    sys.stdout.flush()
+
+    pipe = subprocess.Popen(cmd, shell=True, stdout=stdout, stderr=stderr)
+    (stdoutdata, stderrdata) = pipe.communicate()
+
+    retcode = pipe.returncode
+
+    if retcode < 0:
+        raise utils.SwiftMonError("Execution of command (%s) terminated by signal (%s)!" % \
+                                (cmd, -retcode))
+    elif retcode > 0:
+        raise utils.SwiftMonError("Execution of command (%s) failed with status (%s)!" % \
+                                (cmd, retcode))
+    else:
+        # Exit code is 0, which is "Success". Do nothing.
+        pass
+
+    return (stdoutdata, stderrdata)
 
 class SwiftMonError(Exception):
     """
