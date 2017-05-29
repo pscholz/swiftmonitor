@@ -1,4 +1,5 @@
 import os, sys, time, shutil
+import astropy.io.fits as pyfits
 import numpy as np
 import subprocess
 import re
@@ -88,5 +89,11 @@ def make_cc_regions(event_file,src_radius_asec=10,bgd_rad_1_asec=20,bgd_rad_2_as
         - bgd_fn: filename of the background region
     """
     
+    source_ra,source_dec = find_centroid(event_file)
     
+    source_reg = region('circle',[src_radius_asec],[source_ra,source_dec],coords='fk5')
+    back_reg = region('annulus',[bgd_rad_1_asec,bgd_rad_2_asec],[source_ra,source_dec],coords='fk5')
     
+    source_reg.write(src_fn)
+    back_reg.write(bgd_fn)
+
