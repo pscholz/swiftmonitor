@@ -539,11 +539,16 @@ class region:
                 region_str = 'circle(%s,%s,%d)' % (self.loc[0], self.loc[1], self.dim[0])
             if self.shape is 'annulus':
                 region_str = 'annulus(%s,%s,%d,%d)' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
+        #if self.coords.startswith('fk5'):
+        #    if self.shape is 'circle':
+        #        region_str = 'circle(%s,%s,%d\")' % (self.loc[0], self.loc[1], self.dim[0])
+        #    if self.shape is 'annulus':
+        #        region_str = 'annulus(%s,%s,%d\",%d\")' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
         if self.coords.startswith('fk5'):
             if self.shape is 'circle':
-                region_str = 'circle(%s,%s,%d\")' % (self.loc[0], self.loc[1], self.dim[0])
+                region_str = 'circle(%s:%s:%s,%s:%s:%s,%d\")' % (self.loc[0], self.loc[1], self.dim[0])
             if self.shape is 'annulus':
-                region_str = 'annulus(%s,%s,%d\",%d\")' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])      
+                region_str = 'annulus(%s,%s,%d\",%d\")' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
         return region_str
 
     def write(self,output_fn):
