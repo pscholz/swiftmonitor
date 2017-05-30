@@ -160,7 +160,7 @@ def extract_spectrum(event_file,outroot,source_reg_fn,back_reg_fn,
     specextract.clobber = clobber
     specextract.verbose = verbose
     
-    print(specextract)
+    #print(specextract)
     
     specextract()
 
@@ -195,4 +195,44 @@ def correct_cc_backscal(source_file,back_file,source_reg_fn,back_reg_fn):
     fits = pyfits.open(source_file,mode='update')
     fits[1].header['BACKSCAL'] = 1
     fits.close()
+
+def barycentre(infile,orbitfile,outfile,ra=None,dec=None,refframe='INDEF',clobber=False):
+    """
+    Barycentre the observation using ciao's 'axbary' (see:
+    http://cxc.harvard.edu/ciao/ahelp/axbary.html)
     
+    Arguments:
+        - infile: the name of the input event file to barycentre
+        - outfile: the output filename. Set clobber=True to do corrections in situ
+        - orbitfile: the input orbit ephemeris file: of the form "orbitf051004864N002_eph1.fits."
+    
+    Optional Arguments:
+        - ra: RA in decimal degrees for use in barycentre corrections
+        - dec: DEC in decimal degrees for use in barycentre corrections
+        - refframe: reference frame to be used for corrections - 'FK5' and 'ICRS' are allowed values
+        - clobber: boolean; whether or not to overwrite the existing file.\
+    """
+    
+    axbary.punlearn()
+    
+    axbary.infile = infile
+    axbary.orbitfile = orbitfile
+    axbary.outfile = outfile
+    axbary.refframe = refframe
+    axbary.clobber = clobber
+    
+    if ra:
+    
+        axbary.ra = ra
+        
+    if dec:
+    
+        axbary.dec = dec
+        
+    #print(clobber)
+    
+    #print(axbary.infile)
+        
+    #print(axbary)
+        
+    axbary()
