@@ -526,6 +526,7 @@ class region:
     """
     
     def __init__(self, shape, dimensions, location, coords='physical'):
+    
         self.dim = dimensions
         self.shape = shape 
         self.loc = location
@@ -533,22 +534,52 @@ class region:
         self.region_str = self.get_region_str()
 
     def get_region_str(self):
+    
         # TODO: add other shapes and assert that shape is available
+        
         if self.coords.startswith('physical'):
+        
             if self.shape is 'circle':
+            
                 region_str = 'circle(%s,%s,%d)' % (self.loc[0], self.loc[1], self.dim[0])
+                
             if self.shape is 'annulus':
+            
                 region_str = 'annulus(%s,%s,%d,%d)' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
+                
+        #Currently commented out the degrees version of fk5
+        
         #if self.coords.startswith('fk5'):
         #    if self.shape is 'circle':
         #        region_str = 'circle(%s,%s,%d\")' % (self.loc[0], self.loc[1], self.dim[0])
         #    if self.shape is 'annulus':
         #        region_str = 'annulus(%s,%s,%d\",%d\")' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
+        
+        #Sexagesimal fk5:
+        
         if self.coords.startswith('fk5'):
+            ra = self.loc[0]
+            dec = self.loc[1]
+            
+            ra_h = ra*24/360
+            ra_h_int = int(ra_h)
+            ra_m = int((ra_h - ra_h_int)*60)
+            ra_s = (ra_h - ra_h_int - ra_m/60.)*3600
+            
+            dec_h_int = int(dec)
+            dec_m = abs(int((dec-dec_h_int)*60))
+            dec_s = abs((dec - dec_h_int - np.sign(dec)*dec_m/60.)*3600)
+            
             if self.shape is 'circle':
-                region_str = 'circle(%s:%s:%s,%s:%s:%s,%d\")' % (self.loc[0], self.loc[1], self.dim[0])
+                
+                region_str = 'circle(%s:%s:%s,%s:%s:%s,%d\")' % (ra_h_int,ra_m,ra_s,
+                             dec_h_int,dec_m,dec_s,self.dim[0])
+                
             if self.shape is 'annulus':
-                region_str = 'annulus(%s,%s,%d\",%d\")' % (self.loc[0], self.loc[1], self.dim[0], self.dim[1])
+            
+                region_str = 'annulus(%s:%s:%s,%s:%s:%s,%d\",%d\")' % (ra_h_int,ra_m,ra_s,
+                             dec_h_int,dec_m,dec_s,self.dim[0],self.dim[1])
+                
         return region_str
 
     def write(self,output_fn):

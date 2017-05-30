@@ -34,7 +34,7 @@ def preprocess(indir,outdir='',root=None,badpixel=True,process_events=True,
                    more information about commands being run
     """
     
-    print('Preprocessing Chandra observation...\n')
+    print('Preprocessing Chandra observation using chandra_repro...\n')
     
     #args = locals()
     
@@ -89,6 +89,8 @@ def make_cc_regions(event_file,source_radius_asec=10,back_rad_1_asec=20,back_rad
         - back_fn: filename of the background region
     """
     
+    print('Making source and background region files...\n')
+    
     source_ra,source_dec = find_centroid(event_file)
     
     source_reg = region('circle',[source_radius_asec],[source_ra,source_dec],coords='fk5')
@@ -134,6 +136,8 @@ def extract_spectrum(event_file,outroot,source_reg_fn,back_reg_fn,
         
     """
     
+    print('Extracting a spectrum using specextract...\n')
+    
     specextract.punlearn()
     
     specextract.infile = event_file + '[sky=region(' + source_reg_fn + ')]'
@@ -173,6 +177,8 @@ def correct_cc_backscal(source_file,back_file,source_reg_fn,back_reg_fn):
         - source_reg_fn: the filename of the source .reg file
         - back_reg_fn: the filename of the background .reg file
     """
+    
+    
     
     source_reg = read_region_file(source_reg_fn)
     back_reg = read_region_file(back_reg_fn)
