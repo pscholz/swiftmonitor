@@ -238,19 +238,19 @@ def barycentre(infile,orbitfile,outfile,ra=None,dec=None,refframe='INDEF',clobbe
     
     #print(axbary)
     
-    axbary.infile = infile
-    axbary.orbitfile = orbitfile
-    axbary.outfile = outfile
-    axbary.refframe = refframe
-    axbary.clobber = clobber
+    #axbary.infile = infile
+    #axbary.orbitfile = orbitfile
+    #axbary.outfile = outfile
+    #axbary.refframe = refframe
+    #axbary.clobber = clobber
     
-    if ra:
+    #if ra:
     
-        axbary.ra = ra
+    #    axbary.ra = ra
         
-    if dec:
+    #if dec:
     
-        axbary.dec = dec
+    #    axbary.dec = dec
         
     #print(clobber)
     
@@ -258,7 +258,41 @@ def barycentre(infile,orbitfile,outfile,ra=None,dec=None,refframe='INDEF',clobbe
         
     #print(axbary)
         
-    axbary()
+    #axbary()
+    
+    #At the recommendation of CIAO's help desk, using the subprocess module for now instead:
+    
+    if ra:
+    
+        ra = str(ra)
+        
+    else:
+        
+        ra = 'INDEF'
+        
+    if dec:
+    
+        dec = str(dec)
+       
+    else:
+        
+        dec = 'INDEF'
+        
+    if clobber:
+    
+        clobber = 'yes'
+    else:
+    
+        clobber = 'no'
+    
+    subprocess.call(["axbary",
+                 "infile={}".format(infile),
+                 "orbitfile={}".format(orbitfile),
+                 "outfile={}".format(outfile),
+                 "refframe={}".format(refframe),
+                 "clobber={}".format(clobber),
+                 "ra={}".format(ra),
+                 "dec={}".format(dec)])
     
 def make_img(infile,outfile='temp.fits',option='image',clobber=False):
     """
@@ -281,3 +315,53 @@ def make_img(infile,outfile='temp.fits',option='image',clobber=False):
     dmcopy.clobber = clobber
     
     dmcopy()
+    
+def make_expomap():
+    """
+    Creates a Chandra imaging exposure map using ciao's mkexpmap.
+    """
+    
+    mkexpmap.punlearn()
+    
+def asphist(infile,outfile,evtfile,dtffile):
+    """
+    Make a 3D histogram of duration vs pointing offset and roll offset using ciao's 'asphist' (see:
+    http://cxc.harvard.edu/ciao/ahelp/asphist.html)
+    
+    Arguments:
+        - infile: the name of the input aspect solution file
+        - outfile: the name of the file to write
+        - evtfile: the input event file name
+        - dtffile: the input DTF file name
+    """
+    
+    asphist.punlearn()
+    
+    asphist.infile = infile
+    asphist.outfile = outfile
+    asphist.evtfile = evtfile
+    asphist.dtffile = dtffile
+    
+    asphist()
+    
+def mkinstmap(outfile,spectrumfile=None,monoenergy=1.0,pixelgrid,obsfile,
+              detsubsys,grating=None,maskfile=None,pbkfile):
+    """
+    Generates a Chandra instrument map using ciao's 'mkinstmap' (see:
+    http://cxc.harvard.edu/ciao/ahelp/mkinstmap.html)
+    """
+    
+    mkinstmap.punlearn()
+    
+    mkinstmap.outfile = outfile
+    mkinstmap.spectrumfile = spectrumfile
+    mkinstmap.monoenergy = monoenergy
+    mkinstmap.pixelgrid = pixelgrif
+    mkinstmap.obsfile = obsfile
+    mkinstmap.detsubsys = detsubsys
+    mkinstmap.grating = grating
+    mkinstmap.maskfile = maskfile
+    mkinstmap.pbkfile = pbkfile
+    
+    mkinstmap()
+    
