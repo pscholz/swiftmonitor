@@ -66,14 +66,31 @@ def find_centroid(event_file):
         - event_file: the event file of which to find the centroid
     """
     
-    fits = pyfits.open(event_file)
+    make_img(event_file,clobber=True)
     
-    source_ra = fits[1].header['RA_TARG']
-    source_dec = fits[1].header['DEC_TARG']
+    fits = pyfits.open('temp.fits')
     
-    return source_ra,source_dec
+    #Previously used the RA and DEC headers to find the centre, now trying a more nuanced
+    #max pixel value method
     
-def make_cc_regions(event_file,source_radius_asec=10,back_rad_1_asec=20,back_rad_2_asec=40,
+    #source_ra = fits[1].header['RA_TARG']
+    #source_dec = fits[1].header['DEC_TARG']
+    
+    #return source_ra,source_dec
+    
+    data = fits[0].data
+    
+    #As the data from make_img is 1024x1024 based on the centre of the image, use modulo
+    #arithmetic to find the physical x and y coordinates
+    
+    argmax = np.argmax(data)
+    
+    x = argmax%1024 + 3584
+    y = int(argmax/1024) + 3584
+    
+    return x,y
+    
+def make_cc_regions(event_file,source_radius_asec=30,back_rad_1_asec=60,back_rad_2_asec=90,
                     source_fn='source.reg',back_fn='back.reg'):
     """
     Creates the source and background region files for a given event file
@@ -82,20 +99,20 @@ def make_cc_regions(event_file,source_radius_asec=10,back_rad_1_asec=20,back_rad
         - event_file: the event file to create regions for
     
     Optional Arguments:
-        - source_radius_asec: the radius of the source region circle, in asec
-        - back_radius_1_asec: the inner radius of the background region annulus, in asec
-        - back_radius_2_asec: the outer radius of the background region annulus, in asec
+        - source_radius_asec: the radius of the source region circle, in pixels
+        - back_radius_1_asec: the inner radius of the background region annulus, in pixels
+        - back_radius_2_asec: the outer radius of the background region annulus, in pixels
         - source_fn: filename of the source region
         - back_fn: filename of the background region
     """
     
     print('Making source and background region files...\n')
     
-    source_ra,source_dec = find_centroid(event_file)
+    x,y = find_centroid(event_file)
     
-    source_reg = region('circle',[source_radius_asec],[source_ra,source_dec],coords='fk5')
+    source_reg = region('circle',[source_radius_asec],[x,y],coords='physical')
     back_reg = region('annulus',[back_rad_1_asec,back_rad_2_asec],
-    [source_ra,source_dec],coords='fk5')
+    [x,y],coords='physical')
     
     source_reg.write(source_fn)
     back_reg.write(back_fn)
@@ -213,7 +230,13 @@ def barycentre(infile,orbitfile,outfile,ra=None,dec=None,refframe='INDEF',clobbe
         - clobber: boolean; whether or not to overwrite the existing file.\
     """
     
+    #TODO: figure out why infile keeps getting replaced by a temporary file
+    
+    #axbary(infile,orbitfile,outfile)
+    
     axbary.punlearn()
+    
+    #print(axbary)
     
     axbary.infile = infile
     axbary.orbitfile = orbitfile
@@ -236,3 +259,25 @@ def barycentre(infile,orbitfile,outfile,ra=None,dec=None,refframe='INDEF',clobbe
     #print(axbary)
         
     axbary()
+    
+def make_img(infile,outfile='temp.fits',option='image',clobber=False):
+    """
+    Create a temporary image file for use in finding the centroid: makes a 1024x1024 square
+    of the centre of the image.
+    
+    Arguments:
+        - infile: the name of the input event file to make a temporary image file of
+    Optional Arguments:
+        - outfile: the name of the output file to be created
+        - option: defaults to image
+        - clobber: boolean; whether or not to overwrite a file if outfile exists
+    """
+    
+    dmcopy.punlearn()
+    
+    dmcopy.infile = infile + '[EVENTS][bin x=3584:4608,y=3584:4608]'
+    dmcopy.outfile = outfile
+    dmcopy.option = option
+    dmcopy.clobber = clobber
+    
+    dmcopy()
