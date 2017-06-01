@@ -66,6 +66,8 @@ def find_centroid(event_file):
         - event_file: the event file of which to find the centroid
     """
     
+    print('Finding the centroid of the event file...\n')
+    
     make_img(event_file,clobber=True)
     
     fits = pyfits.open('temp.fits')
@@ -195,8 +197,6 @@ def correct_cc_backscal(source_file,back_file,source_reg_fn,back_reg_fn):
         - back_reg_fn: the filename of the background .reg file
     """
     
-    
-    
     source_reg = read_region_file(source_reg_fn)
     back_reg = read_region_file(back_reg_fn)
     
@@ -227,72 +227,34 @@ def barycentre(infile,orbitfile,outfile,ra=None,dec=None,refframe='INDEF',clobbe
         - ra: RA in decimal degrees for use in barycentre corrections
         - dec: DEC in decimal degrees for use in barycentre corrections
         - refframe: reference frame to be used for corrections - 'FK5' and 'ICRS' are allowed values
-        - clobber: boolean; whether or not to overwrite the existing file.\
+        - clobber: boolean; whether or not to overwrite the existing file.
     """
     
-    #TODO: figure out why infile keeps getting replaced by a temporary file
+    print('Barycentre the observation...\n')
     
-    #axbary(infile,orbitfile,outfile)
+    #This fixes the issue where axbary would not work through scripts
+    
+    from ciao_contrib import runtool
+    runtool._no_par_file.append("axbary")
+    axbary = runtool.make_tool("axbary")
     
     axbary.punlearn()
     
-    #print(axbary)
-    
-    #axbary.infile = infile
-    #axbary.orbitfile = orbitfile
-    #axbary.outfile = outfile
-    #axbary.refframe = refframe
-    #axbary.clobber = clobber
-    
-    #if ra:
-    
-    #    axbary.ra = ra
-        
-    #if dec:
-    
-    #    axbary.dec = dec
-        
-    #print(clobber)
-    
-    #print(axbary.infile)
-        
-    #print(axbary)
-        
-    #axbary()
-    
-    #At the recommendation of CIAO's help desk, using the subprocess module for now instead:
+    axbary.infile = infile
+    axbary.orbitfile = orbitfile
+    axbary.outfile = outfile
+    axbary.refframe = refframe
+    axbary.clobber = clobber
     
     if ra:
     
-        ra = str(ra)
-        
-    else:
-        
-        ra = 'INDEF'
+        axbary.ra = ra
         
     if dec:
     
-        dec = str(dec)
-       
-    else:
+        axbary.dec = dec
         
-        dec = 'INDEF'
-        
-    if clobber:
-    
-        clobber = 'yes'
-    else:
-    
-        clobber = 'no'
-    
-    subprocess.call(["axbary",
-                 "infile={}".format(infile),
-                 "orbitfile={}".format(orbitfile),
-                 "outfile={}".format(outfile),
-                 "refframe={}".format(refframe),
-                 "clobber={}".format(clobber),
-                 "ra={}".format(ra),
-                 "dec={}".format(dec)])
+    axbary()
     
 def make_img(infile,outfile='temp.fits',option='image',clobber=False):
     """
@@ -307,6 +269,8 @@ def make_img(infile,outfile='temp.fits',option='image',clobber=False):
         - clobber: boolean; whether or not to overwrite a file if outfile exists
     """
     
+    print('Making 1024x1024 central image...\n')
+    
     dmcopy.punlearn()
     
     dmcopy.infile = infile + '[EVENTS][bin x=3584:4608,y=3584:4608]'
@@ -316,14 +280,44 @@ def make_img(infile,outfile='temp.fits',option='image',clobber=False):
     
     dmcopy()
     
-def make_expomap():
+def make_expomap(asphistfile,outfile,instmapfile,xygrid,normalize=True,useavgaspect=False,
+                 geompar='geom',verbose=0,clobber=False):
     """
-    Creates a Chandra imaging exposure map using ciao's mkexpmap.
+    Creates a Chandra imaging exposure map using ciao's mkexpmap. (see:
+    http://cxc.harvard.edu/ciao/ahelp/mkexpmap.html)
+    
+    Arguments:
+        - asphistfile: the input aspect histogram file (can be made through asphist)
+        - outfile: the name of the output exposure map file
+        - instmapfile: the name of the input instrument map file (can be made through mkinstmap)
+        - xygrid: the string specifying a region in sky coordinates and resolution of output
+        
+    Optional Arguments:
+        - normalize: selects the physical units of the output exposure map: if true, units of
+                     cm**2 counts/photon, if false, units of s * cm**2 counts/photon
+        - useavgaspect: if set to true, only the average aspect pointing used to derive exposure map
+        - geompar: name of the Pixlib Geometry parameter file
+        - verbose: integer from 0-5, level of displaying diagnostic messages
+        - clobber: boolean; whether or not existing output files will be overwritten
     """
+    
+    print('Making an exposure map...\n')
     
     mkexpmap.punlearn()
     
-def asphist(infile,outfile,evtfile,dtffile):
+    mkexpmap.asphistfile = asphistfile
+    mkexpmap.outfile = outfile
+    mkexpmap.instmapfile = instmapfile
+    mkexpmap.xygrid = xygrid
+    mkexpmap.normalize = normalize
+    mkexpmap.useavgaspect = useavgaspect
+    mkexpmap.geompar = geompar
+    mkexpmap.verbose = verbose
+    mkexpmap.clobber = clobber
+    
+    mkexpmap()
+    
+def make_3D_hist(infile,outfile,evtfile,dtffile=None,verbose=0,clobber=False):
     """
     Make a 3D histogram of duration vs pointing offset and roll offset using ciao's 'asphist' (see:
     http://cxc.harvard.edu/ciao/ahelp/asphist.html)
@@ -332,8 +326,14 @@ def asphist(infile,outfile,evtfile,dtffile):
         - infile: the name of the input aspect solution file
         - outfile: the name of the file to write
         - evtfile: the input event file name
+        
+    Optional Arguments:
         - dtffile: the input DTF file name
+        - verbose: integer from 0-5, level of displaying diagnostic messages
+        - clobber: boolean; whether or not existing output files will be overwritten
     """
+    
+    print('Making a 3D histogram of duration vs. pointing offset and roll offset...\n')
     
     asphist.punlearn()
     
@@ -341,27 +341,46 @@ def asphist(infile,outfile,evtfile,dtffile):
     asphist.outfile = outfile
     asphist.evtfile = evtfile
     asphist.dtffile = dtffile
+    asphist.verbose = verbose
+    asphist.clobber = clobber
     
     asphist()
     
-def mkinstmap(outfile,spectrumfile=None,monoenergy=1.0,pixelgrid,obsfile,
-              detsubsys,grating=None,maskfile=None,pbkfile):
+def instrument_map(outfile,pixelgrid,obsfile,detsubsys='ACIS-S3',spectrumfile=None,
+                   monoenergy=1.0,grating=None,maskfile=None,verbose=0,clobber=False):
     """
     Generates a Chandra instrument map using ciao's 'mkinstmap' (see:
     http://cxc.harvard.edu/ciao/ahelp/mkinstmap.html)
+    
+    Arguments:
+        - outfile: name of the output instrument map file
+        - pixelgrid: string specifying the detecter region and resolution of instrument map
+        - obsfile: name of the event fits file
+        - detsubsys: specifies detector subsystem
+    
+    Optional Arguments:
+        - spectrumfile: input spectral weights file
+        - monoenergy: the energy, in keV, for which the instrument map will be computed
+        - grating: whether to compute a zeroth order instrument map: may be 'HETG' or 'LETG'
+        - maskfile: the mask fits file for the observation
+        - verbose: integer from 0-5, level of displaying diagnostic messages
+        - clobber: boolean; whether or not existing output files will be overwritten
     """
+    
+    print('Generating an instrument map...\n')
     
     mkinstmap.punlearn()
     
     mkinstmap.outfile = outfile
-    mkinstmap.spectrumfile = spectrumfile
+    #mkinstmap.spectrumfile = spectrumfile
     mkinstmap.monoenergy = monoenergy
-    mkinstmap.pixelgrid = pixelgrif
+    mkinstmap.pixelgrid = pixelgrid
     mkinstmap.obsfile = obsfile
     mkinstmap.detsubsys = detsubsys
-    mkinstmap.grating = grating
-    mkinstmap.maskfile = maskfile
-    mkinstmap.pbkfile = pbkfile
+    #mkinstmap.grating = grating
+    #mkinstmap.maskfile = maskfile
+    mkinstmap.verbose = verbose
+    mkinstmap.clobber = clobber
     
     mkinstmap()
     
