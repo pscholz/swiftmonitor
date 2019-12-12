@@ -55,7 +55,7 @@ def write_tempo2_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name='unk', 
         text_file.write("%s %f %s %.2f %s %s\n" % (name,freq,toa,toaerr,obs,flags))
         text_file.close()
     else:
-        print "%s %f %s %.2f %s %s" % (name,freq,toa,toaerr,obs,flags)
+        print("%s %f %s %.2f %s %s" % (name,freq,toa,toaerr,obs,flags))
 
 def write_princeton_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name=' '*13):
     """
@@ -73,11 +73,14 @@ def write_princeton_toa(toa_MJDi, toa_MJDf, toaerr, freq, dm, obs='@', name=' '*
     # Splice together the fractional and integer MJDs
     toa = "%5d"%int(toa_MJDi) + ("%.13f"%toa_MJDf)[1:]
     if dm!=0.0:
-        print obs+" %13s %8.3f %s %8.2f              %9.4f" % \
-              (name, freq, toa, toaerr, dm)
+        print(
+            obs+" %13s %8.3f %s %8.2f              %9.4f" % \
+            (name, freq, toa, toaerr, dm)
+        )
     else:
-        print obs+" %13s %8.3f %s %8.2f" % \
-              (name, freq, toa, toaerr)
+        print(
+            obs+" %13s %8.3f %s %8.2f" % (name, freq, toa, toaerr)
+        )
 
 def calc_phs(MJD, refMJD, *args):
     """
@@ -508,14 +511,19 @@ def execute_cmd(cmd, stdout=sys.stdout, stderr=sys.stderr):
     retcode = pipe.returncode
 
     if retcode < 0:
-        raise utils.SwiftMonError("Execution of command (%s) terminated by signal (%s)!" % \
+        raise SwiftMonError("Execution of command (%s) terminated by signal (%s)!" % \
                                 (cmd, -retcode))
     elif retcode > 0:
-        raise utils.SwiftMonError("Execution of command (%s) failed with status (%s)!" % \
+        raise SwiftMonError("Execution of command (%s) failed with status (%s)!" % \
                                 (cmd, retcode))
     else:
         # Exit code is 0, which is "Success". Do nothing.
         pass
+
+    if stdoutdata:
+        stdoutdata = stdoutdata.decode()
+    if stderrdata:
+        stderrdata = stderrdata.decode()
 
     return (stdoutdata, stderrdata)
 

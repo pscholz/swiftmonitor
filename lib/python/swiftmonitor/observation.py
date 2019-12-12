@@ -24,7 +24,8 @@ def timed_execute(cmd):
   return end - start
 
 def load(pickle_file):
-  return pickle.load(file(pickle_file))
+    with open(pickle_file,"rb") as f:
+        return pickle.load(f)
 
 class Observation:
   
@@ -78,7 +79,7 @@ class Observation:
       dec_deg = abs(float(split_dec[0])) + float(split_dec[1])/60.0 + float(split_dec[2])/3600.0   
       dec_deg *= dec_sign
     else:
-      print "Pulsar %s not in coords file." % self.pulsar
+      print("Pulsar {} not in coords file.".format(self.pulsar))
       ra_deg, dec_deg = ra, dec
 
     f.close()
@@ -111,52 +112,52 @@ class Observation:
     norows_re = re.compile('returns0rows')
 
     for line in cmd.stdout:
-      line = line.replace(' ','')
-      print line
+      line = line.decode().replace(' ','')
+      print(line)
       if tabledown_re.search(line) or norows_re.search(line):
         raise TableDownError
       if point_re.match(line):
-	split_line = line.split('|')
-	new_date = split_line[5][:10]
-	new_window = split_line[7]
-	if new_date != date and date != None:
-	  print "Not all on same date."
-	if new_window != window and window != None:
-	  print "More than one windowsize!"
-	date = new_date
-	window = new_window
+          split_line = line.split('|')
+          new_date = split_line[5][:10]
+          new_window = split_line[7]
+          if new_date != date and date != None:
+              print("Not all on same date.")
+          if new_window != window and window != None:
+              print("More than one windowsize!")
+          date = new_date
+          window = new_window
 
     cmd.stdout.close()
 
     if self.mode == 'wt':
-      if window == '100': 
-	size='1' 
-      elif window == '200':
-	size='2' 
-      elif window == '300':
-	size='3' 
-      elif window == '400': 
-	size='4' 
-      elif window == '500': 
-	size='5' 
-      else: 
-	size='0' 
+        if window == '100':
+            size='1'
+        elif window == '200':
+            size='2'
+        elif window == '300':
+            size='3'
+        elif window == '400':
+            size='4'
+        elif window == '500':
+            size='5'
+        else:
+            size='0'
 
-      obsfile = "sw" + obsid + "xwtw" + size + "po_cl.evt.gz"
+        obsfile = "sw" + obsid + "xwtw" + size + "po_cl.evt.gz"
 
     elif self.mode == 'pc':
-      if window == '490x490':
-	size='1' 
-      elif window == '500x500':
-	size='2' 
-      elif window == '600x600':
-	size='3' 
-      elif window == '480x480':
-	size='4' 
-      else: 
-	size='0'
+        if window == '490x490':
+            size='1'
+        elif window == '500x500':
+            size='2'
+        elif window == '600x600':
+            size='3'
+        elif window == '480x480':
+            size='4'
+        else:
+            size='0'
 
-      obsfile = "sw" + obsid + "xpcw" + size + "po_cl.evt.gz"
+    obsfile = "sw" + obsid + "xpcw" + size + "po_cl.evt.gz"
 
     date = date.split('-')
     date = date[0] + "_" + date[1]
@@ -171,7 +172,7 @@ class Observation:
     """
     Download the observation. 
     """
-    print "Querying HEASARC...\n"
+    print("Querying HEASARC...\n")
   
     # attempt 5 times to retrieve data from heasarc (table often returns empty for no reason) 
     attempts = 0
@@ -187,7 +188,7 @@ class Observation:
     if attempts >= 5:
         raise TableDownError
 
-    print "Downloading observation...\n"
+    print("Downloading observation...\n")
 
     cmd = 'wget -q -N -O ' + self.path + '/' + obsfile + " " + obsurl + '/xrt/event/' + obsfile
     wget_time = timed_execute(cmd)
@@ -199,7 +200,7 @@ class Observation:
     self.obsroot = obsfile.split('.')[0]
 
   def download_raw(self):
-    print "Querying HEASARC...\n"
+    print("Querying HEASARC...\n")
   
     # attempt 5 times to retrieve data from heasarc (table often returns empty for no reason) 
     attempts = 0
@@ -215,7 +216,7 @@ class Observation:
     if attempts >= 5:
         raise TableDownError
 
-    print "Downloading observation (all data)...\n"
+    print("Downloading observation (all data)...\n")
     
     os.mkdir(self.path + '/raw/')
 
@@ -258,14 +259,14 @@ class Observation:
             break
     
     if not self.attfile:
-       print "No attitude file not found in auxil files."
+       print("No attitude file not found in auxil files.")
 
     hdfile = glob.glob(os.path.join(self.path,'raw/xrt/hk/sw*hd.hk.gz'))
 
     if len(hdfile):
         self.hdfile=hdfile[0]
     else:
-       print "HD file not found in auxil files."
+       print("HD file not found in auxil files.")
 
     event_file = glob.glob(os.path.join(self.path,'raw/xrt/event/sw' + self.obsid + \
                                         'x' + self.mode + '??po_cl.evt.gz'))[0]
@@ -283,7 +284,7 @@ class Observation:
     Preprocess the raw unfiltered data using xrtpipeline.
     """
     self.injest_auxil()
-    cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s clobber=yes createexpomap=yes %s' %\
+    cmd = 'xrtpipeline indir=%s outdir=%s steminputs=sw%s chatter=5 clobber=yes createexpomap=yes %s' %\
           (raw_dir, out_dir, self.obsid, xrtpipeline_args)
     if self.ra and self.dec:
         cmd += ' srcra=%s srcdec=%s' % (self.ra, self.dec)
@@ -298,11 +299,11 @@ class Observation:
     expmap_files = glob.glob(out_dir + "/sw" + self.obsid + "x" + self.mode + "*" + "po_ex.img")
     
     if not event_files or len(event_files) > 1:
-      print "No or more than one cleaned event file output in %s" % out_dir
+      print("No or more than one cleaned event file output in {}".format(out_dir))
     if not orbit_files or len(orbit_files) > 1:
-      print "No or more than one orbit file exists in %s/auxil/" % raw_dir
+      print("No or more than one orbit file exists in {}/auxil/".format(raw_dir))
     if not expmap_files or len(expmap_files) > 1:
-      print "No or more than one exposure map file exists in %s" % out_dir
+      print("No or more than one exposure map file exists in {}".format(out_dir))
 
     shutil.copy(event_files[0], self.path)
     shutil.copy(orbit_files[0], self.path)
@@ -360,10 +361,10 @@ class Observation:
 
     if infile == None:
       if self.baryfile == None:
-        print "Using obsfile as input."
+        print("Using obsfile as input.")
         infile = self.path + self.obsfile
       else:
-        print "Using baryfile as input."
+        print("Using baryfile as input.")
         infile = self.path + self.baryfile
 
     full_outroot = os.path.join(self.path,outroot)
@@ -393,21 +394,22 @@ class Observation:
     else:
 
       if self.centroidx != None and self.centroidy != None and force_redo == False:
-	return self.centroidx, self.centroidy
+        return self.centroidx, self.centroidy
 
 
       if self.pulsar:
-	cmd = subprocess.Popen(['ximage', '@/homes/borgii/pscholz/bin/swiftmonitor/wt_centroid_radec.xco',\
-				  self.path + self.imagefile, str(self.ra), str(self.dec) ], stdout=subprocess.PIPE) 
-      else:  
-	cmd = subprocess.Popen(['ximage', '@/homes/borgii/pscholz/bin/swiftmonitor/wt_centroid.xco',\
-				  self.path + self.imagefile], stdout=subprocess.PIPE) 
+          cmd = subprocess.Popen(['ximage', '@/homes/borgii/pscholz/bin/swiftmonitor/wt_centroid_radec.xco',\
+                                  self.path + self.imagefile, str(self.ra), str(self.dec) ], stdout=subprocess.PIPE) 
+      else:
+          cmd = subprocess.Popen(['ximage', '@/homes/borgii/pscholz/bin/swiftmonitor/wt_centroid.xco',\
+                                  self.path + self.imagefile], stdout=subprocess.PIPE)
 
       region_re = re.compile('^[ ]*X/Ypix')
       for line in cmd.stdout:
-	if region_re.match(line):
-	 split_line = line.split()
-	 x,y = split_line[2], split_line[3] 
+          line = line.decode()
+          if region_re.match(line):
+              split_line = line.split()
+              x,y = split_line[2], split_line[3] 
    
     self.centroidx = x
     self.centroidy = y
@@ -485,7 +487,7 @@ class Observation:
                     Default=20
 
     """
-    print "Extracting spectrum...\n"
+    print("Extracting spectrum...\n")
 
     if chan_high == None or chan_low == None:
       if energy_low == None or energy_high == None:
@@ -515,17 +517,17 @@ class Observation:
     pipe = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
     xrtmkarf_out = pipe.stdout.read()
     pipe.stdout.close() 
-    print xrtmkarf_out
+    print(xrtmkarf_out)
 
     rmf_re = re.compile("Processing \'(?P<rmf>.*)\.rmf\' CALDB file\.")
     rmf_search = rmf_re.search(xrtmkarf_out)
     if rmf_search:
       rmf = rmf_search.groupdict()['rmf'] + '.rmf'
     else:
-      print "ERROR: No rmf filename found from xrtmkarf output."
+      print("ERROR: No rmf filename found from xrtmkarf output.")
 
     if grade and grade != '0':
-      print "Grade selection not 0 or default, rmf in 'respfile' keyword may be wrong."
+      print("Grade selection not 0 or default, rmf in 'respfile' keyword may be wrong.")
 
     #if self.mode == 'pc':
     #  rmf = '/exports/scratch/software/CALDB/data/swift/xrt/cpf/rmf/swxpc0to12s6_20010101v013.rmf'
@@ -554,7 +556,7 @@ class Observation:
       outroot += '_g%s' % grade
 
     if infile == None:
-        print "Using obsfile as input."
+        print("Using obsfile as input.")
         infile = self.path + self.obsfile
 
     if not self.attfile or not self.hdfile:
@@ -568,9 +570,12 @@ class Observation:
                                                 self.alignfile, self.attfile, self.mode)[1][0]
 
         if badcol_dist < badcol_tol:
-            print "\nWARNING: Ignoring orbit %s because %.2f pixels away from bad columns.\n" \
-                  "\t Bad column tolerance is set to %.2f pixels.\n" % \
-                   (os.path.basename(split_file), badcol_dist, badcol_tol) 
+            print(
+                "\nWARNING: Ignoring orbit {} because {:.2f} pixels away from bad columns.\n" \
+                "\t Bad column tolerance is set to {:.2f} pixels.\n".format(
+                    os.path.basename(split_file), badcol_dist, badcol_tol
+                )
+            )
 
         else:
 
@@ -608,8 +613,8 @@ class Observation:
     f = open('xspec_script.xcm','w')
 
     xspec_cmds = "source /homes/borgii/pscholz/.xspec/write_out.tcl\ndata " + spectrum +\
-		 "\n@/homes/borgii/pscholz/bin/swiftmonitor/default_fit.xcm\nwrite_out " + self.path +\
-                 self.obsroot + "_xspecfit.txt\nplot ldata delchi\nexit"
+            "\n@/homes/borgii/pscholz/bin/swiftmonitor/default_fit.xcm\nwrite_out " + self.path +\
+            self.obsroot + "_xspecfit.txt\nplot ldata delchi\nexit"
 
     f.write(xspec_cmds)
     f.close()
@@ -620,7 +625,7 @@ class Observation:
     timed_execute('rm xspec_script.xcm')
 
     cmd = 'gs -q -sDEVICE=png16m -r288 -dBATCH -dNOPAUSE -dFirstPage=1 -dLastPage=1 -sOutputFile=' +\
-	   self.path + self.obsroot + '_xspecfit.png ' + self.path + self.obsroot + '_xspecfit.ps'
+            self.path + self.obsroot + '_xspecfit.png ' + self.path + self.obsroot + '_xspecfit.ps'
     timed_execute(cmd)
     cmd = 'convert %s -trim %s' % ( self.path + self.obsroot + '_xspecfit.png',self.path + self.obsroot + '_xspecfit.png' )
     timed_execute(cmd)
@@ -632,7 +637,7 @@ class Observation:
     Extract events from the source and background region files.
     """
 
-    print "Extracting events for default region...\n"
+    print("Extracting events for default region...\n")
     self.extract(self.obsroot + suffix+"reg",infile=self.path + self.baryfile, events=True, region=self.path + self.src_region)  
     self.extract(self.obsroot + suffix+"bgreg",infile=self.path + self.baryfile, events=True, region=self.path + self.back_region)  
     self.reg_obsfile = self.obsroot + suffix+"reg.evt"
@@ -671,13 +676,13 @@ class Observation:
     timed_execute(cmd)
 
   def save(self):
-    pickle.dump(self,file(self.path + self.obsroot+'.pkl','w'))
-    
+      with open(self.path + self.obsroot+'.pkl','wb') as f:
+          pickle.dump(self,f)
 
 # for testing
 if __name__ == '__main__':
 
   ob = Observation('00340573000','/exports/data/pscholz', pulsar='1E1547-5408')
-  print ob.ra, ob.dec
+  print(ob.ra, ob.dec)
 
 

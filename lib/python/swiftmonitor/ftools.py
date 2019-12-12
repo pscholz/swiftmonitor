@@ -10,13 +10,13 @@ def barycentre(infile, outfile, orbitfile, RA=None, Dec=None, clockfile='CALDB')
     Barycentre the observation. If not provided a RA and Dec, the RA and Dec from
       the fits header will be used.
     """
-    print "Barycentreing observation...\n"
+    print("Barycentreing observation...\n")
   
     if RA and Dec:
       cmd = 'barycorr infile=%s outfile=%s orbitfiles=%s ra=%s dec=%s clobber=yes clockfile=%s' %\
             (infile, outfile, orbitfile, RA, Dec, clockfile)
     else:
-      print "No RA and Dec given. Using RA and Dec of target in fits header..."
+      print("No RA and Dec given. Using RA and Dec of target in fits header...")
       cmd = 'barycorr infile=%s outfile=%s orbitfiles=%s clobber=yes clockfile=%s' %\
             (infile, outfile, orbitfile, clockfile)
       
@@ -220,7 +220,7 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
                     Default is to let xrtmkarf do its own calculation.
 
     """
-    print "Extracting spectrum...\n"
+    print("Extracting spectrum...\n")
 
     if chan_high == None or chan_low == None:
       if energy_low == None or energy_high == None:
@@ -251,17 +251,17 @@ def extract_spectrum(outroot,infile,chan_low=None,chan_high=None,energy_low=None
       cmd += " offaxis=%f" % (offaxis_angle)
 
     xrtmkarf_out = execute_cmd(cmd,stdout=subprocess.PIPE)[0]
-    print xrtmkarf_out
+    print(xrtmkarf_out)
 
     rmf_re = re.compile("Processing \'(?P<rmf>.*)\.rmf\' CALDB file\.")
     rmf_search = rmf_re.search(xrtmkarf_out)
     if rmf_search:
       rmf = rmf_search.groupdict()['rmf'] + '.rmf'
     else:
-      print "ERROR: No rmf filename found from xrtmkarf output."
+      print("ERROR: No rmf filename found from xrtmkarf output.")
 
     if grade and grade != '0':
-      print "Grade selection not 0 or default, rmf in 'respfile' keyword may be wrong."
+      print("Grade selection not 0 or default, rmf in 'respfile' keyword may be wrong.")
 
     grppha_comm = "chkey backfile %s_back.pha & chkey ancrfile %s_source.arf & chkey respfile %s"%\
                   (outroot, outroot, rmf)
@@ -328,7 +328,7 @@ def add_spectra(spec_list, outroot, grouping=None):
 
     f = open('tmp_arfs.list','w')
     for tmp_arf, weight in zip(tmp_arfs,weights):
-        print tmp_arf, weight
+        print(tmp_arf, weight)
         f.write(tmp_arf + ' ' + str(weight) + '\n')
     f.close()
 
@@ -391,7 +391,7 @@ def define_orbits(event_file, sep_time=1000.0):
     orb_ends = np.append(orb_ends,[gtistop[-1]])
     orb_starts = np.append([gtistart[0]],orb_starts)
 
-    orbits = zip(orb_starts, orb_ends)
+    orbits = list(zip(orb_starts, orb_ends))
 
     orb_inds = np.empty(len(gtis)) # which orbit the GTI belongs to
     orb_inds.fill(len(orbits) + 1) # fill with index that will break things if not replaced
@@ -428,7 +428,7 @@ def split_orbits(infile):
     snapshot_num = 0
     
     if np.any(orb_inds == len(orbits) + 1):
-        print '\t WARNING: SOME GTIS NOT IN ORBITS!!!'
+        print('\t WARNING: SOME GTIS NOT IN ORBITS!!!')
 
     for i_orb in range(len(orbits)):
         # make list of gtis in the orbit

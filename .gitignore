@@ -1,2 +1,3 @@
 *.pyc
 lib/python/swiftmonitor/mltest
+lib/python/swiftmonitor/config.py
