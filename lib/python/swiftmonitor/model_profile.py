@@ -13,7 +13,7 @@ def find_model(model_name):
   """
   for objname in globals():
     obj = eval(objname)
-    if type(obj) == types.ClassType and issubclass(obj,Profile_Model):
+    if isinstance(obj, type) and issubclass(obj,Profile_Model):
       if obj.get_name() == model_name:
         return obj
 
@@ -26,7 +26,7 @@ def list_models():
   models = []
   for objname in globals():
     obj = eval(objname)
-    if type(obj) == types.ClassType and issubclass(obj,Profile_Model):
+    if isinstance(obj, type) and issubclass(obj,Profile_Model):
       model_name = obj.get_name()
       if model_name:
         models.append(model_name)
@@ -158,8 +158,8 @@ class Gaussian_Model(Profile_Model):
         phase = profile.T[0] 
         self.nbins = len(phase)
         phase /= float(self.nbins)
-        print 'phase = ', phase
-        print 'nbins = ', self.nbins
+        print('phase = ', phase)
+        print('nbins = ', self.nbins)
         grand = profile.T[1]
         err = np.sqrt(grand)
 
@@ -195,13 +195,13 @@ class Gaussian_Model(Profile_Model):
                 best_guess.append(mu_guess)
                 best_guess.append(sig_guess)
                 if(verbose):
-                    print 'A, mu, sig, base (guesses): ', A_guess, mu_guess, \
-                        sig_guess, base_guess 
+                    print('A, mu, sig, base (guesses): ', A_guess, mu_guess, \
+                        sig_guess, base_guess) 
             else:
                 self.ngauss -= 1
                     #print 'A, mu, sig, base (fit):     ', A, mu, sig, base
-            print 'base_guess = ', base_guess
-            print 'base type  = ', np.shape(base_guess)
+            print('base_guess = ', base_guess)
+            print('base type  = ', np.shape(base_guess))
             profile_resid -= self.gaussian(phase, A_guess, mu_guess, 
                 sig_guess, prof_mean)
 
@@ -209,7 +209,7 @@ class Gaussian_Model(Profile_Model):
         base_guess = np.mean(profile_centre)
         best_guess.append(base_guess)
         if(verbose):
-            print 'best_guess = ', best_guess
+            print('best_guess = ', best_guess)
 
         # Now do proper fit with ngauss Gaussian components, now that I have 
         # the best automated guess vector
@@ -217,17 +217,17 @@ class Gaussian_Model(Profile_Model):
             profile_centre, yerr=np.sqrt(profile_centre), p0=best_guess)
 
         if(verbose):
-            print 'Fit parameters:'
-            print ''
-            print '    A: ', A_fit
-            print '   mu: ', mu_fit
-            print '  sig: ', sig_fit
-            print ' base: ', base_fit
+            print('Fit parameters:')
+            print('')
+            print('    A: ', A_fit)
+            print('   mu: ', mu_fit)
+            print('  sig: ', sig_fit)
+            print(' base: ', base_fit)
 
         # Roll back the fit profile model vi fit mean, using phases
         ### mu_fit -= float(n_roll_bins)/float(self.nbins)
-        print 'rolled_bins = ', mu_fit*self.nbins
-        print '   mu: ', mu_fit
+        print('rolled_bins = ', mu_fit*self.nbins)
+        print('   mu: ', mu_fit)
 
 
         #n_fit_bins=1000
@@ -295,19 +295,19 @@ class Gaussian_Model(Profile_Model):
         if(yerr!=None):
             sig = 1.0/yerr**2.0
         if (verbose):
-            print 'p0 IN = ', p0
-            print '\nxdata = ', xdata
-            print 'ydata = ', ydata
-            print 'yerr = ', sig
-            print ''
+            print('p0 IN = ', p0)
+            print('\nxdata = ', xdata)
+            print('ydata = ', ydata)
+            print('yerr = ', sig)
+            print('')
         popt, pcov = curve_fit(self.gaussian_multi_func, xdata, ydata, 
             sigma=sig, p0=p0)
         if (verbose):
-            print 'popt = ', popt
-            print 'pcov = ', pcov
+            print('popt = ', popt)
+            print('pcov = ', pcov)
         ##print 'n_popt = ', len(popt)
         ngauss = (len(popt) - 1)/3
-        print 'ngauss = ', ngauss
+        print('ngauss = ', ngauss)
 #        A = [np.zeros(ngauss, dtype=float)]
 #        mean = np.zeros_like(A)
 #        width = np.zeros_like(A)
@@ -370,8 +370,8 @@ class Gaussian_Model(Profile_Model):
 
             gauss_out += base
         else:
-            print 'Error: A, mu, and sigma, need to be of same array '
-            print 'length (= ngauss)'
+            print('Error: A, mu, and sigma, need to be of same array ')
+            print('length (= ngauss)')
 
         return gauss_out
 

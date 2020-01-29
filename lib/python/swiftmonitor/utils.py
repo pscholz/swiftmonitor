@@ -152,7 +152,7 @@ def energy2chan(E, scope='swift'):
     elif scope == 'xmm':
         chans = E*1000.   
     elif scope == 'fermi':
-        chans = E*1000.
+        chans = E/1000.0 # since fermi is in MeV
     elif scope == 'xte' or 'rxte':
        xte_scale = np.loadtxt('/homes/borgii/rarchiba/swiftmonitor/XTE_ENERGY_CHANNEL_mod',
                         usecols=[0, -1]).T
@@ -176,7 +176,11 @@ def fits2times(evtname,scope='swift',Emin=None, Emax=None, give_t_E=False, aware
     """
     fits = pyfits.open(evtname)
     if scope =='fermi':
-        t = fits[1].data['bary_time'] 
+        try:
+            t = fits[1].data['bary_time'] 
+        except KeyError:
+            print("No 'bary_time' column in fermi fits, trying 'time' ...")
+            t = fits[1].data['time'] 
     else:       
         t = fits[1].data['time']
         t = t
